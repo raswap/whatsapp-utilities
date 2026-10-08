@@ -1,0 +1,46 @@
+# Production-style stack: wamcp + Postgres 16 on one host (tech-stack T3).
+# Copy .env.example to .env, set POSTGRES_PASSWORD, then: docker compose up -d
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wamcp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: wamcp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U wamcp -d wamcp']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  wamcp:
+    image: ghcr.io/raswap/wamcp:${WAMCP_TAG:-main}
+    build: .
+    restart: on-failure:5
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://wamcp:${POSTGRES_PASSWORD}@postgres:5432/wamcp
+      WAMCP_MASTER_KEY_FILE: /run/secrets/master.key
+      WAMCP_CONFIG: /config/wamcp.yaml
+      SMTP_URL: ${SMTP_URL:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - wamcp-data:/data
+      - ./wamcp.yaml:/config/wamcp.yaml:ro
+    secrets:
+      - master.key
+    ports:
+      - '127.0.0.1:8787:8787'
+
+secrets:
+  master.key:
+    file: ${WAMCP_MASTER_KEY_FILE:-./master.key}
+
+volumes:
+  pgdata:
+  wamcp-data:
