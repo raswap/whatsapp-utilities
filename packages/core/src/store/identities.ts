@@ -145,6 +145,14 @@ export class IdentityStore {
     return { contactId: keep, mergedFrom: drop }
   }
 
+  /** Records the first time a contact sent us a DM; the first-contact gate check reads it. */
+  async noteFirstDm(contactId: string, at: Date): Promise<void> {
+    await this.db
+      .update(this.t.contacts)
+      .set({ firstDmAt: sql`coalesce(${this.t.contacts.firstDmAt}, ${at})` })
+      .where(eq(this.t.contacts.id, contactId))
+  }
+
   async jidsFor(contactId: string): Promise<string[]> {
     const rows = await this.db
       .select({ jid: this.t.identities.jid })

@@ -65,6 +65,8 @@ export const AccountConfigSchema = z.object({
   persona: z.string().max(4000).default(''),
   llm_enabled: z.boolean().default(true),
   history_days: z.number().int().min(0).max(365).default(30),
+  /** Approval mode for sends initiated by MCP clients or the CLI (rules carry their own). */
+  tool_send_approval: z.enum(['auto', 'approve', 'dry_run']).default('approve'),
   limits: z
     .object({
       sends_per_chat_interval_seconds: z.number().int().min(1).default(30),

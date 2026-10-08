@@ -108,6 +108,9 @@ export class Pipeline {
       return null
     }
     const senderId = await this.resolveSender(raw)
+    if (senderId && raw.type === 'message.received' && !raw.isFromMe && (raw.chatType ?? 'dm') === 'dm') {
+      await this.identities.noteFirstDm(senderId, raw.occurredAt)
+    }
     const origin =
       raw.isFromMe && raw.providerId && MESSAGE_TYPES.has(raw.type)
         ? await this.originFor(raw.providerId)
