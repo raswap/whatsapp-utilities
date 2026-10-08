@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- macOS launchd job. Install: cp deploy/com.wamcp.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.wamcp.plist -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.wamcp</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/node</string>
+    <string>/opt/wamcp/packages/cli/dist/index.js</string>
+    <string>serve</string>
+  </array>
+  <key>WorkingDirectory</key><string>/opt/wamcp</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>WAMCP_CONFIG</key><string>/opt/wamcp/wamcp.yaml</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key><false/>
+  </dict>
+  <key>ThrottleInterval</key><integer>10</integer>
+  <key>StandardOutPath</key><string>/opt/wamcp/wamcp.log</string>
+  <key>StandardErrorPath</key><string>/opt/wamcp/wamcp.err.log</string>
+</dict>
+</plist>

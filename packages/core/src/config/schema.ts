@@ -82,7 +82,8 @@ export const ServerConfigSchema = z.object({
   http: z
     .object({
       bind: z.string().default('127.0.0.1'),
-      port: z.number().int().min(1).max(65535).default(8787),
+      /** 0 binds an ephemeral port (tests). */
+      port: z.number().int().min(0).max(65535).default(8787),
       /** Allowed Origin header values for browser clients; loopback origins are always allowed. */
       allowed_origins: z.array(z.string()).default([]),
     })
