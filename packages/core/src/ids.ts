@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomInt } from 'node:crypto'
 import { monotonicFactory } from 'ulid'
 
 const ulid = monotonicFactory()
@@ -19,9 +19,8 @@ export function newMessageId(): string {
 /** Short approval code: 6 chars from a base32 alphabet without ambiguous glyphs (~30 bits). */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 export function newApprovalCode(): string {
-  const bytes = randomBytes(6)
   let out = ''
-  for (let i = 0; i < 6; i++) out += CODE_ALPHABET[(bytes[i] as number) % CODE_ALPHABET.length]
+  for (let i = 0; i < 6; i++) out += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]
   return out
 }
 
