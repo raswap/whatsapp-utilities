@@ -253,7 +253,11 @@ export class WebConnector implements Connector {
           this.selfJid = sock.user?.id ? sock.user.id.replace(/:\d+@/, '@') : this.selfJid
           this.setState('connected')
         }
-        if (u.connection === 'close') await this.onClose(u.lastDisconnect?.error)
+        if (u.connection === 'close') {
+          // A socket we already replaced may still emit a close; only the live one drives the state machine.
+          if (this.sock !== sock) return
+          await this.onClose(u.lastDisconnect?.error)
+        }
       },
     )
 

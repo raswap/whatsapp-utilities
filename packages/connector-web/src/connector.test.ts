@@ -43,6 +43,14 @@ class FakeSocket extends EventEmitter implements SocketLike {
   async logout() {}
 }
 
+async function waitFor(cond: () => boolean, timeoutMs = 5000) {
+  const start = Date.now()
+  while (!cond()) {
+    if (Date.now() - start > timeoutMs) throw new Error('waitFor timed out')
+    await new Promise((r) => setTimeout(r, 2))
+  }
+}
+
 async function rig(over: { conflictWaitMs?: number } = {}) {
   const id = `wc${Math.random().toString(36).slice(2, 7)}`
   await provisionAccount(
@@ -139,14 +147,14 @@ describe('web connector', () => {
       })
     for (let i = 0; i < 7; i++) {
       close(408)
-      await new Promise((r) => setTimeout(r, 5))
+      await waitFor(() => sockets.length === i + 2)
     }
     expect(sockets.length).toBe(8)
     expect(Math.max(...sleeps)).toBeLessThanOrEqual(20_000 * 1.2)
     expect(sleeps[0]).toBeLessThanOrEqual(1200)
     expect(states.filter((s) => s === 'reconnecting').length).toBeGreaterThan(0)
     close(401)
-    await new Promise((r) => setTimeout(r, 5))
+    await waitFor(() => c.health().state === 'logged_out')
     expect(c.health().state).toBe('logged_out')
     expect(sockets.length).toBe(8)
   })
@@ -159,11 +167,11 @@ describe('web connector', () => {
         lastDisconnect: { error: new Boom('replaced', { statusCode: 440 }) },
       })
     close()
-    await new Promise((r) => setTimeout(r, 5))
+    await waitFor(() => sockets.length === 2)
     expect(sleeps).toContain(30_000)
     expect(sockets.length).toBe(2)
     close()
-    await new Promise((r) => setTimeout(r, 5))
+    await waitFor(() => c.health().state === 'logged_out')
     expect(c.health().state).toBe('logged_out')
     expect(sockets.length).toBe(2)
   })
