@@ -1,0 +1,16 @@
+{
+  "name": "@wamcp/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "wamcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@wamcp/core": "workspace:*"
+  }
+}
