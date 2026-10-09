@@ -9,6 +9,8 @@ COPY packages/mcp/package.json packages/mcp/
 COPY packages/cli/package.json packages/cli/
 RUN pnpm install --frozen-lockfile
 COPY packages packages
+# pnpm prune refuses to purge node_modules without a TTY unless CI is set.
+ENV CI=true
 RUN pnpm build && pnpm prune --prod
 
 FROM node:22-slim
