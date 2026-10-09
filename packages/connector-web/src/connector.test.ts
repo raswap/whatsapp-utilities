@@ -76,11 +76,13 @@ const msg = (id: string, remoteJid = 'a@s.whatsapp.net', messageTimestamp = 1_78
   messageTimestamp,
 })
 
-async function waitFor(cond: () => boolean, timeoutMs = 5000) {
+async function waitFor(cond: () => boolean, timeoutMs = 5000, poll?: () => Promise<void>) {
   const start = Date.now()
+  await poll?.()
   while (!cond()) {
     if (Date.now() - start > timeoutMs) throw new Error('waitFor timed out')
     await new Promise((r) => setTimeout(r, 2))
+    await poll?.()
   }
 }
 
@@ -556,7 +558,15 @@ describe('web connector', () => {
     const { c, sockets } = await rig()
     const s = sockets[0] as FakeSocket
     s.emit('creds.update', {})
-    await waitFor(() => true)
+    const sessionState = tablesFor(`acct_${c.accountId}`).sessionState
+    let saved = 0
+    await waitFor(
+      () => saved > 0,
+      5000,
+      async () => {
+        saved = (await tdb.handle.db.select().from(sessionState)).length
+      },
+    )
     await c.logout()
     expect(s.loggedOut).toBe(true)
     const rows = await tdb.handle.db.select().from(tablesFor(`acct_${c.accountId}`).sessionState)
