@@ -254,7 +254,7 @@ export function accountTables(schemaName: string) {
     key: text('key').primaryKey(),
     tokens: integer('tokens').notNull(),
     capacity: integer('capacity').notNull(),
-    refillPerSecond: integer('refill_per_second_milli').notNull(),
+    intervalMs: integer('interval_ms').notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   })
 
@@ -273,6 +273,16 @@ export function accountTables(schemaName: string) {
     valueEnc: text('value_enc').notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   })
+
+  const chatLabels = s.table(
+    'chat_labels',
+    {
+      chatId: text('chat_id').notNull(),
+      label: text('label').notNull(),
+      createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    },
+    (t) => [primaryKey({ columns: [t.chatId, t.label] })],
+  )
 
   const llmUsage = s.table(
     'llm_usage',
@@ -304,6 +314,7 @@ export function accountTables(schemaName: string) {
     rateBuckets,
     counters,
     sessionState,
+    chatLabels,
     llmUsage,
   }
 }
