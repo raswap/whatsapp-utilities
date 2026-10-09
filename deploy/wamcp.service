@@ -1,0 +1,28 @@
+# systemd unit for a host without Docker (tech-stack T20 alternative path).
+# Install: cp deploy/wamcp.service /etc/systemd/system/ && systemctl enable --now wamcp
+[Unit]
+Description=WhatsApp MCP server (wamcp)
+After=network-online.target postgresql.service
+Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=wamcp
+Group=wamcp
+WorkingDirectory=/opt/wamcp
+EnvironmentFile=/etc/wamcp/env
+ExecStart=/usr/bin/node /opt/wamcp/packages/cli/dist/index.js serve
+Restart=on-failure
+RestartSec=10
+# Exit status 3 means "do not restart" (crash loop or startup failure after alerting).
+RestartPreventExitStatus=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/wamcp
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
