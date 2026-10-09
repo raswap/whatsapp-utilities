@@ -2,10 +2,10 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Draft v0.3 (post-review) |
+| Status | Draft v0.4 (tech stack decided; see `docs/tech-stack.md`) |
 | Owner | raswap |
 | Repository | `raswap/whatsapp-utilities` |
-| Last updated | 2026-10-06 |
+| Last updated | 2026-10-08 |
 | Changes since v0.2 | Four adversarial reviews (product, engineering, security, operations) produced 95 findings; dispositions are in `docs/PRD-review-log.md`. Headline changes: honest loss guarantee for the Web connector (§4.1, §7.2); dedicated **operator channel** that bypasses the policy gate (§7.1, §7.6); **action classes** so side-effecting actions get the same approval default as sends (§7.3); **separation of duties** on approvals and split read scopes (§7.7); three-phase rule engine with explicit state snapshot (§7.5); pre-generated message ids for idempotent sends (§7.3); identity resolution for LID/phone (§7.2); LLM budgets (§12); per-account data directories, backup/restore, migrations, alerts delivery, and crash-loop handling (§9, §11, §13); P0 split into P0a and P0b (§14.6) |
 
 Requirement keywords **MUST**, **MUST NOT**, **SHOULD**, **MAY** are used in the RFC 2119 sense.
@@ -31,14 +31,14 @@ Every outbound action, whether from a rule or an agent, passes through one **pol
 | # | Decision | Default | Rationale | Reversal cost |
 | --- | --- | --- | --- | --- |
 | D1 | First account type | Personal / Business App via the Web connector | Covers groups and personal use; no Meta onboarding | Low: Cloud API connector is P3 behind the same interface |
-| D2 | Hosting | Single always-on Linux or macOS host, single process, under systemd or Docker with the shipped unit / compose file | Simplest reliable deployment for one operator | Medium: Postgres and Redis in P4 |
-| D3 | Primary MCP client | Claude Code and Claude Desktop over the stdio proxy; custom agents over Streamable HTTP | Matches how the owner works | None: both ship in P0b |
+| D2 | Hosting | Single always-on Linux or macOS host; `wamcp` process plus Postgres 16 from the shipped compose file, or under systemd with a local Postgres | Simplest reliable deployment for one operator | Medium: Redis bus in P4 |
+| D3 | Primary MCP client | Claude Code and Claude Desktop over the stdio proxy; custom agents over Streamable HTTP | Matches how the owner works | None: both ship in P0a (tech-stack T9) |
 | D4 | Default autonomy | Every rule with a `counterparty_send` or `side_effecting` action (§7.3) is created with `approval: approve`. Switching a rule to `auto` is an audited admin action with `confirm: true`. There is **no** time-based automatic flip | A wrong automated reply or trade is the most expensive failure; a calendar flip is a silent change in risk | None: config |
 | D5 | Model provider | Claude API; fast model for classification, stronger model for drafting; provider behind an interface; model ids in config | Best quality per cost | Low |
 | D6 | Local-model option | Out of scope for v1; chats can be opted out of LLM processing entirely | Keeps v1 small | Medium |
 | D7 | Bridge to other systems | `call_tool` to registered MCP servers and webhooks ships in P1; nothing trading-specific in this repo | Keeps the repo generic | None |
 | D8 | Language and runtime | TypeScript, Node.js 22 LTS | Baileys and the MCP SDK are Node-first | High after P0 |
-| D9 | Storage | One SQLite database (WAL) plus one session store **per account** under `data/<account>/`; encrypted with SQLCipher; media on local disk | Zero-ops; per-account blast radius for backup, restore, corruption | Medium: Postgres in P4 |
+| D9 | Storage | PostgreSQL 16 with one schema per account (`acct_<id>`) and an `operator` schema; application-level AES-256-GCM for session state, tokens, and phone numbers; message bodies plaintext for `tsvector` search; media on local disk under `data/<account>/media/` | Per-account blast radius for backup, restore, purge via schema; real concurrency from day one | High after P0a (tech-stack T3 to T7) |
 | D10 | Automation number | Run automation on a dedicated number. The operator's own phone number(s) are registered as `operator_numbers` and are how the operator commands the system from a phone | Unofficial protocol carries ban risk; keeps the personal number clean | None |
 | D11 | Operator channel | At least one **non-WhatsApp** operator channel (email or HTTP webhook, for example an ntfy or Telegram relay) is required when any Web account exists, because WhatsApp itself is the channel most likely to be down | Logout and connector-down alerts must still arrive | None |
 | D12 | Group management | Group **reads** ship in P0a. Group **mutations** (create, add, remove, promote, settings, leave) and polls ship in P4 behind an opt-in capability flag | Highest ban-risk surface, serves no v1 persona | None |
@@ -516,7 +516,7 @@ An approval holds the rendered action, trace, preview, code, `expires_at`, and `
 │  WebConnector (Baileys)      │  CloudApiConnector (P3)                     │
 ├──────────────────────────────┴─────────────────────────────────────────────┤
 │  data/_operator/ (global rules, tokens, operator config)                   │
-│  data/<account>/db.sqlite (SQLCipher, WAL, FTS5, session state, events…)   │
+│  PostgreSQL 16: schema acct_<id> per account (events, messages, session…)  │
 │  data/<account>/media/  ·  backups/<account>/                              │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -564,7 +564,7 @@ Session keys (full account access), message content and media, contact identitie
 | **Compromised read token** | Full-account dump | Split read scopes; chat/label allowlists per token; `get_invite_link` is `send`; `raw` scope for opted-out content |
 | **Approval bypass by the agent** | Agent approves its own action | FR-P6 separation of duties; `approver` scope; stdio token has no `approver` |
 | **Self-command spoofing** | Another linked device, a stolen session, a forwarded command | FR-P4: operator-number DM only, non-forwarded, non-edited; random single-use codes; lockout; `device.linked` and `conflict` alerts |
-| **Session key theft** | Disk read by another user or malware | SQLCipher whole-database encryption including FTS; master key from OS keychain / secret-service, or a passphrase at start, or `WAMCP_MASTER_KEY_FILE` (mode 0600, not inside `data/`); file modes 0600; `wamcp doctor` checks. Same-user malware with access to the running process is **out of scope** |
+| **Session key theft** | Database or disk read by another user or malware | Signal session state, tokens, provider keys, and phone numbers are encrypted in the application with AES-256-GCM under a master key read from `WAMCP_MASTER_KEY_FILE` (mode 0600, outside the data directory); Postgres is bound to loopback or the compose network with a generated password; disk-level encryption of the Postgres volume is the operator's responsibility and `wamcp doctor` warns when it cannot confirm it. Same-user malware with access to the running process is **out of scope** |
 | **Backup exposure** | Backups contain sessions and bodies | Backups encrypted under the master key with the key id recorded; 0600; retention enforced; `data purge` regenerates affected backups; `doctor` warns if backups live on the data disk |
 | **Webhook spoofing** (Cloud API) | Forged POST | HMAC `X-Hub-Signature-256`; verify token; body ≤ 1 MB; replay protection by dedup key, not by timestamp (Meta retries legitimately for hours) |
 | **SSRF / exfiltration via targets** | Rule points at an internal URL or sends full context to a CRM | Targets registered by name (§10.6) with a `data_policy`; outbound allowlist; private ranges blocked by default; no redirects |
@@ -581,7 +581,7 @@ Bearer tokens, random 256-bit, stored hashed, with scopes, account lists, option
 
 ### 10.4 Data protection
 
-- **At rest**: SQLCipher for every database; media files encrypted at rest with a per-account data key wrapped by the master key; `wamcp secrets rotate` re-wraps data keys and retained backups.
+- **At rest**: application-level AES-256-GCM for session state, tokens, provider keys, and phone numbers (tech-stack T6); message bodies are plaintext in Postgres so `tsvector` search works; media files encrypted with a per-account data key wrapped by the master key; `wamcp secrets rotate` re-wraps data keys and retained backups.
 - **In transit**: TLS to WhatsApp, Meta, and the model provider; MCP HTTP requires TLS off loopback.
 - **Retention**: per account; defaults messages and events 180 d, media 30 d, audit 365 d, facts per TTL, presence not stored. Daily purge, audited, cascades to FTS, facts, summaries, `understand` cache, and backups.
 - **Deletion and export**: `wamcp data export` (JSON) and `wamcp data purge --chat|--contact|--account` with confirmation; purge cascades as above.
@@ -680,7 +680,7 @@ targets:
 | `wamcp doctor` | Checks, each pass/warn/fail, non-zero exit on fail: config schema; master key present and not under `data/`; file modes; `quick_check` per database; schema version vs binary; free disk vs projected footprint; Baileys version vs known-good list; connector health; operator channels reachable and D11 satisfied; backup age ≤ 25 h and backup path not on the data disk; host clock vs NTP; timezone valid; token TTLs |
 | `wamcp status` | Connector state, last event age, pending approvals, `unknown` actions, throttle, LLM spend, disk, backup age, per account |
 | Timezone | All windows, cron, and schedule evaluation convert the UTC instant to the account's IANA zone (rule-level override allowed); host-local time is never used; DST gap times are treated as the next valid instant, repeated hours match both occurrences |
-| Backups | `wamcp backup` uses the SQLite backup API (`VACUUM INTO`) per account, encrypted, key id recorded, plus an hourly `session.enc` sidecar; daily by default, 7 retained; `wamcp restore --db-only` keeps the live session sidecar, `--full` restores both and documents that it may require re-pair |
+| Backups | `wamcp backup` runs `pg_dump --schema=acct_<id>` per account (and the `operator` schema), encrypts the dump under the master key with the key id recorded, plus an hourly `session.enc` sidecar of the live session state; daily by default, 7 retained; `wamcp restore --db-only` restores the schema and keeps the live session sidecar, `--full` restores both and documents that it may require re-pair |
 | Upgrades | Migrations forward-only, one transaction each, `schema_version` last; `wamcp migrate --dry-run`; `migrate_on_start` option |
 | Portability | Node 22 on Linux and macOS; Docker image; reference systemd unit and compose file |
 | Testability | Fake connector replaying fixtures; `evaluate` pure; LLM provider mocked with recorded responses |
@@ -736,7 +736,7 @@ targets:
 
 | Phase | Scope | Done when |
 | --- | --- | --- |
-| **P0a Core** | TypeScript project; Connector interface; WebConnector with pairing, SQLCipher-backed session state in the event transaction, bounded pairing history sync; per-account databases; write-ahead events with dedup, `seq`, cursor; identity table; in-process stdio MCP server with read tools, `send_message` with pre-generated ids and `approve` via CLI; policy gate with kill switches, rate limits, loop protection; operator channel with email/webhook and approvals; `wamcp init|serve|status|doctor|tail|accounts|approvals|actions|backup|restore|tokens`; systemd unit and compose file; starter rules installed disabled | Pair a test number; see live messages in Claude Code; send a reply through CLI approval; kill -9 at each stage with no re-pair and no gap after handoff; decrypt-vs-key-save chaos passes; alert drill for `logged_out` lands on email or webhook; `doctor` clean |
+| **P0a Core** | pnpm monorepo; Connector interface; WebConnector with pairing, session state stored in the account schema and committed in the event transaction, bounded pairing history sync; per-account Postgres schemas; write-ahead events with dedup, `seq`, cursor; identity table; MCP server over Streamable HTTP (Hono) and the stdio proxy with scoped tokens, read tools, `send_message` with pre-generated ids and `approve` via CLI; policy gate with kill switches, rate limits, loop protection; operator channel with email/webhook and approvals; `wamcp init|serve|status|doctor|tail|accounts|approvals|actions|backup|restore|tokens`; systemd unit and compose file; starter rules installed disabled | Pair a test number; see live messages in Claude Code; send a reply through CLI approval; kill -9 at each stage with no re-pair and no gap after handoff; decrypt-vs-key-save chaos passes; alert drill for `logged_out` lands on email or webhook; `doctor` clean |
 | **P0b Transport** | Streamable HTTP, stdio proxy with token file, scoped tokens, subscriptions and `get_events`, first-contact rule, self-commands with codes, ack-to-persist measurement and journaling investigation | Two clients attached; scope-escalation and self-approval red-team pass; `wamcp_ack_to_persist_seconds` reported |
 | **P1 Rules + bridge** | Rule schema, DB-authoritative storage with import, scopes, three-phase engine, deterministic conditions, all `observe` and `counterparty_send` actions, `test_rule`, `explain_event`, versioning, `call_tool` and `notify` with registered targets and data policies, audit tools, migrations tooling | Golden traces and property tests pass; SSRF and third-party-forward tests pass; `explain_event` answers a "why not" question |
 | **P2 Understanding** | Context assembly with provenance, taxonomy, `understand` / `summarize_chat` / `draft_reply`, LLM conditions with budgets, facts with TTL, transcription, content guard, opt-out including read tools | Injection corpus passes including false-positive criterion; budget flood test; opt-out verified at provider and tool level |
