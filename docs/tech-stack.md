@@ -30,6 +30,7 @@ Decided with the owner on 2026-10-08 before the first line of P0a code. Each row
 | T24 | CD | Every merge to `main` publishes `ghcr.io/raswap/wamcp:main` and a SHA tag; a `v*` tag publishes the version and creates a GitHub Release. No deploy credentials in GitHub; hosts pull | |
 | T25 | Branch protection | `main` requires a PR and passing `ci` and `codeql` checks, up to date with base | Set by hand; the automation cannot change repo settings |
 | T26 | Production host | Undecided; Docker compose and systemd paths are both shipped and documented | |
+| T27 | Dependency versions | Every `package.json` pins exact versions; `.npmrc` sets `save-exact=true` so `pnpm add` pins too. Dependabot proposes every bump as its own PR | Decided 2026-10-09 |
 
 ## P0a pull request plan
 
