@@ -20,3 +20,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # Node major bumps are deliberate (tech-stack T20 pins the LTS line).
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
