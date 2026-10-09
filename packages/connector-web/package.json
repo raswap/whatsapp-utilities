@@ -10,15 +10,15 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@hapi/boom": "^10.0.1",
+    "@hapi/boom": "10.0.1",
     "@wamcp/core": "workspace:*",
     "@whiskeysockets/baileys": "7.0.0-rc14",
-    "drizzle-orm": "^0.45.4",
-    "long": "^5.3.2",
-    "pino": "^10.4.0",
-    "qrcode-terminal": "^0.12.0"
+    "drizzle-orm": "0.45.4",
+    "long": "5.3.2",
+    "pino": "10.4.0",
+    "qrcode-terminal": "0.12.0"
   },
   "devDependencies": {
-    "@types/qrcode-terminal": "^0.12.2"
+    "@types/qrcode-terminal": "0.12.2"
   }
 }
