@@ -26,6 +26,10 @@ Decided with the owner on 2026-10-08 before the first line of P0a code. Each row
 | T20 | Docker | `node:22-slim` multi-stage image | |
 | T21 | License | None; all rights reserved | No `LICENSE` file is added on purpose |
 | T22 | Delivery | One pull request per vertical slice, 4 to 6 for P0a, each against `main` with tests | |
+| T23 | CI | GitHub Actions on every PR and push to `main`: Biome, tsc, vitest with coverage posted to the PR; CodeQL on PRs and weekly; Dependabot weekly for npm, Actions, and Docker with Baileys excluded | Decided 2026-10-08; see `docs/ci-cd.md` |
+| T24 | CD | Every merge to `main` publishes `ghcr.io/raswap/wamcp:main` and a SHA tag; a `v*` tag publishes the version and creates a GitHub Release. No deploy credentials in GitHub; hosts pull | |
+| T25 | Branch protection | `main` requires a PR and passing `ci` and `codeql` checks, up to date with base | Set by hand; the automation cannot change repo settings |
+| T26 | Production host | Undecided; Docker compose and systemd paths are both shipped and documented | |
 
 ## P0a pull request plan
 
