@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ConfigError, loadSecrets, parseConfig } from './load.js'
+import { ConfigError, loadConfigFile, loadSecrets, parseConfig } from './load.js'
 
 const good = `
 version: 1
@@ -43,5 +43,8 @@ describe('config', () => {
     expect(s.WAMCP_MASTER_KEY_FILE.startsWith('/')).toBe(true)
     expect(s.LOG_LEVEL).toBe('info')
     expect(() => loadSecrets({})).toThrow(/DATABASE_URL/)
+  })
+  it('loadConfigFile reports unreadable files as ConfigError', () => {
+    expect(() => loadConfigFile('/nonexistent/wamcp.yaml')).toThrow(/cannot read config/)
   })
 })

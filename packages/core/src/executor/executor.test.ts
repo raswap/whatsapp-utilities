@@ -21,7 +21,7 @@ let tdb: TestDatabase
 const log = pino({ level: 'silent' })
 let n = 0
 
-async function rig() {
+async function rig(cfgOver: Record<string, unknown> = {}) {
   const id = `ex${++n}`
   const cfg = AccountConfigSchema.parse({
     id,
@@ -29,6 +29,7 @@ async function rig() {
     display_name: id,
     timezone: 'UTC',
     business_hours: { days: [1, 2, 3, 4, 5, 6, 7], start: '00:00', end: '23:59' },
+    ...cfgOver,
   })
   await provisionAccount(tdb.handle, cfg)
   const schema = accountSchemaName(id)
@@ -104,6 +105,9 @@ async function rig() {
   const inbound = (await pipeline.events.listAfter(0, 1))[0]
   return { id, cfg, schema, tables, clock, pipeline, connector, executor, memory, audit, chatId, inbound }
 }
+
+type ExecutorOptions = ConstructorParameters<typeof Executor>[0]
+const optionsOf = (e: Executor) => (e as unknown as { o: ExecutorOptions }).o
 
 const plan = (over: Partial<PlannedAction> = {}): PlannedAction => ({
   kind: 'send_message',
@@ -280,5 +284,199 @@ describe('executor', () => {
     expect((v as { count: number }).count).toBeGreaterThanOrEqual(4)
     const rows = await audit.query({ kind: 'gate' })
     expect(rows.length).toBe(2)
+  })
+
+  it('defaults apply when sleep, approval ttl and resolve window are not given', async () => {
+    const { executor, connector, clock } = await rig()
+    const bare = new Executor({
+      ...optionsOf(executor),
+      sleep: undefined,
+      approvalTtlMs: undefined,
+      unknownResolveWindowMs: undefined,
+    })
+    const a = await bare.submit(plan({ approval: 'approve', actor: 'x' }))
+    expect(a.expiresAt?.getTime()).toBe(clock.now().getTime() + 4 * 3600_000)
+    connector.nextSendThrow = { error: new Error('ack timeout'), frameWritten: true }
+    const b = await bare.submit(plan({ text: 'other' }))
+    expect(b.state).toBe('unknown')
+    expect((b.result as { resolveBy: string }).resolveBy).toBe(
+      new Date(clock.now().getTime() + 15 * 60_000).toISOString(),
+    )
+  })
+
+  it('approval notice shows the rule and omits text and chat when absent', async () => {
+    const { executor, memory, inbound } = await rig()
+    const a = await executor.submit(
+      plan({
+        approval: 'approve',
+        actor: 'rule',
+        ruleId: 'r1',
+        eventId: inbound?.id as string,
+        recipientContactId: 'c1',
+        text: undefined,
+      }),
+    )
+    expect(a.state).toBe('awaiting_approval')
+    const body = memory.messages.at(-1)?.body as string
+    expect(body).toContain('Rule: r1')
+    expect(body).not.toContain('Text:')
+    expect((await executor.approve(a.approvalCode as string, 'cli:owner')).state).toBe('sent')
+    // A send without a chat reaches no wire command and fails locally once approved.
+    const b = await executor.submit(plan({ approval: 'approve', actor: 'x', chatId: undefined }))
+    expect(memory.messages.at(-1)?.body).toContain('Action: send_message\n')
+    const done = await executor.approve(b.approvalCode as string, 'cli:owner')
+    expect(done.state).toBe('failed')
+    expect((done.result as { error: string }).error).toContain('no local handler')
+  })
+
+  it('approve: expired code, re-gate blocks after escalation, reject of unknown code', async () => {
+    const { executor, clock } = await rig()
+    const a = await executor.submit(plan({ approval: 'approve', actor: 'x' }))
+    clock.advance(61_000)
+    await expect(executor.approve(a.approvalCode as string, 'cli:owner')).rejects.toMatchObject({
+      code: 'EXPIRED',
+    })
+    expect((await executor.actions.get(a.id))?.state).toBe('expired')
+    const b = await executor.submit(plan({ approval: 'approve', actor: 'x', text: 'later' }))
+    await executor.submit(plan({ kind: 'escalate', payload: {}, text: undefined }))
+    const blocked = await executor.approve(b.approvalCode as string, 'cli:owner')
+    expect(blocked.state).toBe('blocked')
+    expect((blocked.result as { check: string }).check).toBe('kill_switch')
+    await expect(executor.reject('NOPE', 'cli:owner')).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
+  it('limiter at execution: chat interval re-queues once then drops; hour window blocks', async () => {
+    const { executor, memory } = await rig({ limits: { sends_per_hour: 1 } })
+    expect((await executor.submit(plan())).state).toBe('sent')
+    const approved = async (over: Partial<PlannedAction>) => {
+      const { row } = await executor.actions.create(plan(over))
+      return executor.actions.update(row.id, { state: 'approved' })
+    }
+    const wait = await executor.execute(await approved({ text: 'two' }))
+    expect(wait.state).toBe('retry_wait')
+    expect((wait.result as { reason: string }).reason).toContain('chat interval')
+    const dropped = await executor.execute(wait)
+    expect(dropped.state).toBe('failed')
+    expect(memory.messages.at(-1)?.title).toContain('rate limited')
+    const other = await executor.execute(await approved({ chatId: 'other@s.whatsapp.net' }))
+    expect((other.result as { reason: string }).reason).toContain('account per hour')
+  })
+
+  it('natural typing delay sends a typing frame first and ignores its failure', async () => {
+    const { executor, connector } = await rig()
+    connector.nextSendThrow = { error: new Error('typing failed'), frameWritten: false }
+    const a = await executor.submit(plan({ payload: { typing_delay: 'natural' } }))
+    expect(a.state).toBe('sent')
+    expect(connector.sends.map((s) => s.cmd.kind)).toEqual(['set_typing', 'send_message'])
+  })
+
+  it('connector rejection fails the action and alerts with the error message', async () => {
+    const { executor, connector, clock, memory } = await rig()
+    connector.nextSendResult = {
+      outcome: 'rejected',
+      frameWritten: true,
+      error: { kind: 'not_in_group', message: 'boom' },
+    }
+    const a = await executor.submit(plan())
+    expect(a.state).toBe('failed')
+    expect(memory.messages.at(-1)?.body).toContain('boom')
+    clock.advance(60_000)
+    connector.nextSendResult = { outcome: 'rejected', frameWritten: false }
+    const b = await executor.submit(plan({ text: 'two' }))
+    expect(b.state).toBe('failed')
+    expect(memory.messages.at(-1)?.body).toContain('rejected by connector')
+  })
+
+  it('builds mark_read, react and quoted send commands', async () => {
+    const { executor, connector, clock } = await rig()
+    await executor.submit(plan({ kind: 'mark_read', payload: {}, text: undefined }))
+    expect(connector.sends.at(-1)?.cmd).toMatchObject({ kind: 'mark_read', providerIds: [] })
+    await executor.submit(plan({ kind: 'react_to_message', payload: { providerId: 'IN1' }, text: undefined }))
+    expect(connector.sends.at(-1)?.cmd).toMatchObject({ kind: 'react_to_message', emoji: null })
+    clock.advance(60_000)
+    await executor.submit(
+      plan({ kind: 'react_to_message', payload: { providerId: 'IN1', emoji: '👍' }, text: undefined }),
+    )
+    expect(connector.sends.at(-1)?.cmd).toMatchObject({ emoji: '👍' })
+    clock.advance(60_000)
+    const q = await executor.submit(plan({ payload: { quotedProviderId: 'IN1' } }))
+    expect(connector.sends.at(-1)?.cmd).toMatchObject({ quotedProviderId: 'IN1', messageId: q.messageId })
+    clock.advance(60_000)
+    await executor.submit(plan({ text: undefined }))
+    expect(connector.sends.at(-1)?.cmd).toMatchObject({ kind: 'send_message', text: '' })
+  })
+
+  it('local handlers: remove_label, escalate without chat, notify_operator, set_chat_automation', async () => {
+    const { executor, pipeline, chatId, memory, tables } = await rig()
+    await executor.submit(plan({ kind: 'set_label', payload: { label: 'vip' }, text: undefined }))
+    await executor.submit(plan({ kind: 'remove_label', payload: { label: 'vip' }, text: undefined }))
+    expect(await tdb.handle.db.select().from(tables.chatLabels)).toEqual([])
+    await executor.submit(plan({ kind: 'escalate', payload: {}, text: undefined, chatId: undefined }))
+    expect(memory.messages.at(-1)).toMatchObject({ title: 'Escalated: ', body: 'chat escalated to human' })
+    await executor.submit(plan({ kind: 'escalate', payload: {}, text: 'from text' }))
+    expect(memory.messages.at(-1)?.body).toBe('from text')
+    await executor.submit(
+      plan({
+        kind: 'notify_operator',
+        payload: { level: 'alert', title: 'T' },
+        text: 'body',
+        chatId: undefined,
+      }),
+    )
+    expect(memory.messages.at(-1)).toMatchObject({ kind: 'alert', title: 'T', body: 'body' })
+    await executor.submit(plan({ kind: 'notify_operator', payload: {}, text: undefined }))
+    expect(memory.messages.at(-1)).toMatchObject({ kind: 'info', title: 'Notification', body: '' })
+    const s = await executor.submit(
+      plan({ kind: 'set_chat_automation', payload: { state: 'paused' }, text: undefined }),
+    )
+    expect(s.state).toBe('sent')
+    expect((await pipeline.chats.get(chatId))?.automationState).toBe('paused')
+  })
+
+  it('pipeline handler ignores echoes of already-sent actions, unknown ids, and edits without actions', async () => {
+    const { executor, connector, pipeline, chatId, clock } = await rig()
+    const a = await executor.submit(plan())
+    for (const providerId of [a.messageId as string, 'NOPE']) {
+      await connector.emit(
+        textMessage({
+          chatId,
+          senderJid: 'me@s.whatsapp.net',
+          providerId,
+          body: 'x',
+          occurredAt: clock.now(),
+          type: 'message.sent',
+          isFromMe: true,
+        }),
+      )
+    }
+    for (const providerId of ['IN1', 'NOPE']) {
+      await connector.emit({
+        type: 'message.deleted',
+        chatId,
+        senderJid: chatId,
+        providerId,
+        occurredAt: clock.now(),
+        isFromMe: false,
+        source: 'live',
+        payload: {},
+      })
+    }
+    await pipeline.drained()
+    expect((await executor.actions.get(a.id))?.state).toBe('sent')
+  })
+
+  it('action store: missing rows, refused transitions, list filters, identical-send lookup', async () => {
+    const { executor, chatId, clock } = await rig()
+    const a = await executor.submit(plan())
+    expect(await executor.actions.get('nope')).toBeNull()
+    await expect(executor.actions.update('nope', {})).rejects.toThrow('not found')
+    expect(await executor.actions.transition(a.id, ['planned'], 'failed')).toBeNull()
+    expect(await executor.actions.list({ state: ['sent', 'failed'], chatId, limit: 5 })).toHaveLength(1)
+    expect(await executor.actions.list({ chatId: 'other' })).toHaveLength(0)
+    expect(await executor.actions.list()).toHaveLength(1)
+    const since = new Date(clock.now().getTime() - 1000)
+    const hash = (a.payload as { textHash: string }).textHash
+    expect(await executor.actions.lastIdenticalSendAt(chatId, hash, since)).toEqual(a.updatedAt)
+    expect(await executor.actions.lastIdenticalSendAt(chatId, 'other', since)).toBeNull()
   })
 })

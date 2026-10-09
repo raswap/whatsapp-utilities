@@ -430,3 +430,63 @@ describe('dispatcher and subscriptions', () => {
     expect(await pipeline.messages.lastHumanReplyAt('f@s.whatsapp.net')).not.toBeNull()
   })
 })
+
+describe('store branches', () => {
+  it('identity hints: phone lookup, sameAs lookup, pushName update, and merge keeps the phone', async () => {
+    const { pipeline, connector, clock, schema } = await makePipeline()
+    const ids = pipeline.identities
+    // phone from the jid; a later LID hint with an explicit phone joins the same contact
+    const a = await ids.resolve({ jid: '919999000011@s.whatsapp.net', kind: 'phone' })
+    const b = await ids.resolve({ jid: '11@lid', kind: 'lid', phone: '+919999000011', pushName: 'Pn' })
+    expect(b).toMatchObject({ contactId: a.contactId, created: false })
+    // sameAs lookup when neither jid nor phone matches
+    const c = await ids.resolve({ jid: '12@lid', kind: 'lid', sameAs: '919999000011@s.whatsapp.net' })
+    expect(c.contactId).toBe(a.contactId)
+    // pushName-only update on a known contact, and a re-resolve without changes
+    await ids.resolve({ jid: '12@lid', kind: 'lid', pushName: 'Renamed' })
+    await ids.resolve({ jid: '12@lid', kind: 'lid' })
+    expect((await ids.contactsByIds([a.contactId]))[0]?.pushName).toBe('Renamed')
+    expect(await ids.contactsByIds([])).toEqual([])
+    // merging two contacts where the dropped one carries the phone
+    const x = await ids.resolve({ jid: '13@lid', kind: 'lid' })
+    const y = await ids.resolve({ jid: '919999000013@s.whatsapp.net', kind: 'phone' })
+    const merged = await ids.link('13@lid', y.contactId)
+    expect(merged.mergedFrom).toBeDefined()
+    expect(await ids.phoneOf(merged.contactId)).toBe('+919999000013')
+    expect(await ids.phoneOf(x.contactId === merged.contactId ? y.contactId : x.contactId)).toBeNull()
+    expect(await ids.link('13@lid', merged.contactId)).toEqual({ contactId: merged.contactId })
+    expect(await ids.phoneOf('nope')).toBeNull()
+    void clock
+    void schema
+    // a chat-less event (contact update) and a group event without an explicit chatType
+    await connector.emit({
+      type: 'contact.updated',
+      senderJid: '919999000011@s.whatsapp.net',
+      occurredAt: clock.now(),
+      isFromMe: false,
+      source: 'live',
+      payload: { name: 'A', pushName: null },
+    })
+    await connector.emit({
+      type: 'group.subject_changed',
+      chatId: '555@g.us',
+      occurredAt: clock.now(),
+      isFromMe: false,
+      source: 'live',
+      payload: { subject: 'S' },
+    } as never)
+    const evs = await pipeline.events.listAfter(0, 5, { types: ['contact.updated', 'group.subject_changed'] })
+    expect(evs.map((e) => e.chatId)).toEqual([null, '555@g.us'])
+    expect(await pipeline.events.getById('missing')).toBeNull()
+    expect(await pipeline.events.getById(evs[0]?.id as string)).not.toBeNull()
+    expect(
+      await pipeline.events.listAfter(0, 100, { includeFromMe: false, includeBackfill: false }),
+    ).toHaveLength(2)
+    // a caption-only media message projects the caption as body
+    await connector.emit({
+      ...textMessage({ chatId: '555@g.us', senderJid: '11@lid', providerId: 'CAP', body: '' }),
+      payload: { kind: 'image', caption: 'cap' },
+    })
+    expect((await pipeline.messages.getMessages({ chatId: '555@g.us' })).items[0]?.body).toBe('cap')
+  })
+})

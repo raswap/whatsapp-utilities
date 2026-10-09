@@ -1,0 +1,18 @@
+# Starter rule (installed disabled). Enable with: wamcp rules enable urgent-notify   (rules engine ships in P1)
+id: urgent-notify
+enabled: false
+scope: {}
+when:
+  event: message.received
+  from_me: false
+  ignore_backfill: true
+  any_of:
+    - keywords: ["urgent", "asap", "emergency", "immediately"]
+actions:
+  - set_label: needs-attention
+  - notify_operator:
+      title: "Urgent message from {{contact.display_name}}"
+      text: "{{message.body}}"
+on_match: continue
+policy:
+  approval: auto

@@ -1,0 +1,20 @@
+# Starter rule (installed disabled). Replies once per contact per day outside business hours.
+id: away-ack
+enabled: false
+scope:
+  chat_type: dm
+when:
+  event: message.received
+  from_me: false
+  ignore_backfill: true
+  not_time_window: business_hours
+  skip_if_human_replied_within: 30m
+actions:
+  - send_message:
+      text: "Thanks for your message. I'm away right now and will reply during business hours."
+      typing_delay: natural
+      rate_limit: { per_chat: "1/1d" }
+on_match: stop
+policy:
+  approval: approve
+  max_sends_per_day: 20

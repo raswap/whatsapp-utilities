@@ -1,0 +1,15 @@
+# Starter rule (installed disabled). Sends the operator a daily summary of a group (needs P2 understanding).
+id: group-daily-digest
+enabled: false
+scope:
+  chat_type: group
+when:
+  event: schedule.cron
+  cron: "0 18 * * *"
+actions:
+  - notify_operator:
+      title: "Daily digest: {{chat.name}}"
+      text: "{{understand.summary}}"
+on_match: continue
+policy:
+  approval: auto
