@@ -596,6 +596,8 @@ export class WebConnector implements Connector {
 
   /** Forgets the session (for `wamcp accounts unpair`). */
   async logout() {
+    // Drop the saver first so a creds.update racing the wipe cannot re-create the session.
+    this.saveCreds = null
     try {
       await this.sock?.logout()
     } finally {
