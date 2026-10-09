@@ -10,6 +10,11 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@wamcp/core": "workspace:*"
+    "@hono/node-server": "^2.1.4",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@wamcp/core": "workspace:*",
+    "hono": "^4.13.13",
+    "pino": "^9.14.0",
+    "zod": "^3.25.76"
   }
 }
