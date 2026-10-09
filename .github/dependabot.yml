@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Protocol library upgrades are deliberate (tech-stack T2); never auto-bump.
+      - dependency-name: '@whiskeysockets/baileys'
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

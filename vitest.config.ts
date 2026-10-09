@@ -8,5 +8,12 @@ export default defineConfig({
     hookTimeout: 60_000,
     pool: 'forks',
     fileParallelism: true,
+    coverage: {
+      provider: 'v8',
+      include: ['packages/*/src/**/*.ts'],
+      exclude: ['**/*.test.ts', '**/testing/**', '**/index.ts'],
+      reporter: ['text', 'json-summary', 'json'],
+      reportsDirectory: './coverage',
+    },
   },
 })
