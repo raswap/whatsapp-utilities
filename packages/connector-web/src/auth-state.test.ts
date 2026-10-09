@@ -61,4 +61,16 @@ describe('auth state', () => {
     expect(creds?.valueEnc.startsWith('plain:')).toBe(true) // test codec; real codec yields a v1 envelope
     expect(JSON.parse(creds?.valueEnc.slice(6) ?? '{}', BufferJSON.reviver).noiseKey).toBeDefined()
   })
+
+  it('clear wipes every stored row, from the key store and from the top level', async () => {
+    const a = await loadAuthState(deps())
+    await a.state.keys.set({ session: { 'z.0': new Uint8Array([1]) } })
+    await a.state.keys.set({ session: undefined }) // nothing to write
+    await a.state.keys.clear()
+    expect(await a.state.keys.get('session', ['z.0'])).toEqual({})
+    expect(await a.state.keys.get('session', [])).toEqual({})
+    await a.saveCreds()
+    await a.clear()
+    expect(await tdb.handle.db.select().from(tablesFor('acct_auth').sessionState)).toEqual([])
+  })
 })

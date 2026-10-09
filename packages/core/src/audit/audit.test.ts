@@ -34,4 +34,21 @@ describe('audit log', () => {
     )
     expect(await audit.verify()).toEqual({ ok: true, count: 20 })
   })
+  it('query filters by event, rule, chat, kind and time', async () => {
+    const audit = new AuditLog(tdb.handle.db, tablesFor('acct_aud'))
+    await tdb.handle.db.execute('delete from acct_aud.audit_log')
+    const e = await audit.append({
+      actor: 'x',
+      kind: 'gate',
+      eventId: 'E1',
+      ruleId: 'R1',
+      chatId: 'c@s.whatsapp.net',
+    })
+    await audit.append({ actor: 'x', kind: 'action' })
+    const q = (o: Parameters<AuditLog['query']>[0]) => audit.query(o).then((r) => r.map((x) => x.id))
+    expect(await q({ eventId: 'E1' })).toEqual([e.id])
+    expect(await q({ ruleId: 'R1', chatId: 'c@s.whatsapp.net', kind: 'gate', limit: 1 })).toEqual([e.id])
+    expect(await q({ since: new Date(Date.now() + 60_000) })).toEqual([])
+    expect(await q({ until: new Date(Date.now() + 60_000) })).toHaveLength(2)
+  })
 })

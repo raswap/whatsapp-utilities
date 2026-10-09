@@ -1,5 +1,14 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import {
@@ -20,8 +29,9 @@ import pino from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { backupAccount, pruneBackups, restoreAccount } from './commands/backup.js'
 import { renderConfig, runInit } from './commands/init.js'
-import type { CliContext } from './context.js'
+import { type CliContext, cliActor, loadContext, out, resolveConfigPath, table } from './context.js'
 import { runDoctorChecks } from './doctor-checks.js'
+import { buildRuntimes } from './runtimes.js'
 import { EXIT_DO_NOT_RESTART, ensureLocalToken, recordStart, startServer } from './server.js'
 
 let tdb: TestDatabase
@@ -226,7 +236,7 @@ describe('init and doctor', () => {
     const keyPath = resolve(d, 'master.key')
     generateMasterKey(keyPath)
     execFileSync('chmod', ['644', keyPath])
-    const cfg = parseConfig(CONFIG.replace('timezone: UTC', 'timezone: UTC'), resolve(d, 'wamcp.yaml'))
+    const cfg = parseConfig(CONFIG, resolve(d, 'wamcp.yaml'))
     const checks = await runDoctorChecks({
       configPath: resolve(d, 'wamcp.yaml'),
       config: { ...cfg, operator: { ...cfg.operator, channels: [] } },
@@ -241,5 +251,137 @@ describe('init and doctor', () => {
     expect(byName.database?.status).toBe('fail')
     expect(byName['operator channels']?.status).toBe('fail')
     expect(byName.baileys?.status).toBe('warn')
+  })
+
+  it('doctor warns on stale backups, same-disk backups, loose config modes, expiring tokens, bad zones, and a key inside data', async () => {
+    const d = resolve(dir, 'doc3')
+    mkdirSync(resolve(d, 'data'), { recursive: true })
+    mkdirSync(resolve(d, 'backups', 'main'), { recursive: true })
+    const old = resolve(d, 'backups', 'main', 'old.dump')
+    writeFileSync(old, 'x')
+    utimesSync(old, new Date('2026-05-01T00:00:00Z'), new Date('2026-05-01T00:00:00Z'))
+    writeFileSync(resolve(d, '.env'), 'X=1')
+    execFileSync('chmod', ['644', resolve(d, '.env')])
+    const keyPath = resolve(d, 'data', 'master.key')
+    generateMasterKey(keyPath)
+    const cfg = parseConfig(CONFIG, resolve(d, 'wamcp.yaml'))
+    await ctx.tokens.create({ name: 'soon', scopes: ['read:messages'], accountIds: ['*'], ttlDays: 1 })
+    const checks = await runDoctorChecks({
+      configPath: resolve(d, 'wamcp.yaml'),
+      config: {
+        ...cfg,
+        accounts: [
+          cfg.accounts[0] as never,
+          { ...(cfg.accounts[0] as never), id: 'ghost', timezone: 'Not/AZone' },
+        ],
+      },
+      masterKeyPath: keyPath,
+      handle: tdb.handle,
+      baileysVersion: '7.0.0-rc14',
+      now: clock.now(),
+      probe: async () => [
+        { channel: 'hook', ok: true },
+        { channel: 'mail', ok: false, error: 'smtp down' },
+        { channel: 'x', ok: false },
+      ],
+    })
+    const byName = Object.fromEntries(checks.map((c) => [c.name, c]))
+    expect(byName['master key']).toMatchObject({ status: 'fail', detail: /inside the data directory/ })
+    expect(byName['.env mode']?.status).toBe('warn')
+    expect(byName['account main']?.status).toBe('pass') // provisioned by the serve test above
+    expect(byName.tokens).toMatchObject({ status: 'warn', detail: /soon expire/ })
+    expect(byName['channel hook']?.status).toBe('pass')
+    expect(byName['channel mail']?.detail).toBe('smtp down')
+    expect(byName['channel x']?.detail).toBe('failed')
+    expect(byName.backups).toMatchObject({ status: 'warn', detail: /h old/ })
+    expect(byName['backup location']?.status).toBe('warn')
+    expect(byName['timezone ghost']?.status).toBe('fail')
+    expect(byName.disk?.status).toBeDefined()
+    // an empty backup dir and a database that errors mid-check
+    rmSync(old)
+    const broken = {
+      ...tdb.handle,
+      pool: {
+        query: async () => {
+          throw new Error('boom')
+        },
+      },
+    } as never
+    const again = await runDoctorChecks({
+      configPath: resolve(d, 'wamcp.yaml'),
+      config: cfg,
+      masterKeyPath: keyPath,
+      handle: broken,
+      baileysVersion: '7.0.0-rc14',
+      now: clock.now(),
+    })
+    const again2 = Object.fromEntries(again.map((c) => [c.name, c]))
+    expect(again2.backups).toMatchObject({ status: 'warn', detail: 'no backups yet' })
+    expect(again2.database).toMatchObject({ status: 'fail', detail: 'boom' })
+  })
+})
+
+describe('context helpers and runtimes', () => {
+  it('resolves config paths, actor names, output modes, and tables', () => {
+    const prev = process.env.WAMCP_CONFIG
+    process.env.WAMCP_CONFIG = '~/x.yaml'
+    expect(resolveConfigPath()).toMatch(/\/x\.yaml$/)
+    expect(resolveConfigPath()).not.toContain('~')
+    process.env.WAMCP_CONFIG = undefined as never
+    delete process.env.WAMCP_CONFIG
+    expect(resolveConfigPath()).toBe('./wamcp.yaml')
+    expect(resolveConfigPath('/a.yaml')).toBe('/a.yaml')
+    if (prev !== undefined) process.env.WAMCP_CONFIG = prev
+    expect(cliActor()).toMatch(/^cli:/)
+    const writes: string[] = []
+    const orig = process.stdout.write
+    process.stdout.write = ((s: string) => {
+      writes.push(s)
+      return true
+    }) as never
+    try {
+      out({ json: true }, { a: 1 }, () => 'human')
+      out({}, { a: 1 }, () => 'human')
+    } finally {
+      process.stdout.write = orig
+    }
+    expect(writes).toEqual(['{\n  "a": 1\n}\n', 'human\n'])
+    expect(table([], ['a'])).toBe('(none)')
+    expect(table([{ a: 'x', b: null }], ['a', 'b'])).toBe('a  b\n-  -\nx   ')
+  })
+
+  it('loadContext reads .env, config, key, and opens the database; buildRuntimes honours only and type', async () => {
+    const d = resolve(dir, 'ctx')
+    mkdirSync(d, { recursive: true })
+    writeFileSync(resolve(d, 'wamcp.yaml'), CONFIG)
+    writeFileSync(
+      resolve(d, '.env'),
+      `DATABASE_URL=${tdb.url}\nWAMCP_MASTER_KEY_FILE=${ctx.masterKey.path}\n`,
+    )
+    const loaded = await loadContext({ config: resolve(d, 'wamcp.yaml'), verbose: true })
+    try {
+      expect(loaded.masterKey.id).toBe(ctx.masterKey.id)
+      expect(loaded.config.accounts[0]?.id).toBe('main')
+      const rts = await buildRuntimes(loaded, { fake: true, only: 'nope' })
+      expect(rts.size).toBe(0)
+      const web = await buildRuntimes(loaded, {
+        fake: false,
+        onQr: () => undefined,
+        onPairingCode: () => undefined,
+        onState: () => undefined,
+        pairingPhones: { main: '+919999000000' },
+      })
+      expect(web.get('main')?.connector.constructor.name).toBe('WebConnector')
+      const cloud = {
+        ...loaded,
+        config: { ...loaded.config, accounts: [{ ...(loaded.config.accounts[0] as never), type: 'cloud' }] },
+      }
+      await expect(buildRuntimes(cloud as never, { fake: false })).rejects.toThrow(/not supported yet/)
+    } finally {
+      await loaded.close()
+    }
+    const noKey = await loadContext({ config: resolve(d, 'wamcp.yaml') }, { needKey: false })
+    expect(noKey.masterKey.id).toBe('none')
+    await noKey.close()
   })
 })

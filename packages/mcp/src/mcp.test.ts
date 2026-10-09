@@ -29,9 +29,11 @@ let tdb: TestDatabase
 let httpServer: ServerType
 let baseUrl = ''
 let connector: FakeConnector
-let tokens: { reader: string; sender: string; approver: string; other: string }
+let tokens: { reader: string; sender: string; approver: string; other: string; scoped: string }
+let store: TokenStore
 const clock = new ManualClock(new Date('2026-06-01T10:00:00Z'))
 const chatId = 'cust@s.whatsapp.net'
+const chatId2 = 'cust2@s.whatsapp.net'
 let registry: Registry
 let httpApp: ReturnType<typeof createHttpApp>
 
@@ -74,20 +76,34 @@ beforeAll(async () => {
     clock,
     extraSenders: [new MemorySender()],
   })
-  const rt = createAccountRuntime({
-    handle: tdb.handle,
-    config: cfg,
-    connector,
-    codec: plainCodec,
-    clock,
-    log,
-    operator,
-    sleep: async () => undefined,
-  })
+  const mk = (config: typeof cfg, conn: FakeConnector) =>
+    createAccountRuntime({
+      handle: tdb.handle,
+      config,
+      connector: conn,
+      codec: plainCodec,
+      clock,
+      log,
+      operator,
+      sleep: async () => undefined,
+    })
+  const rt = mk(cfg, connector)
   await rt.start()
+  // Second account: auto send, connector without reactions (CAPABILITY_UNSUPPORTED path).
+  const cfg2 = AccountConfigSchema.parse({ ...cfg, id: 'm2', display_name: 'M2', tool_send_approval: 'auto' })
+  await provisionAccount(tdb.handle, cfg2)
+  const connector2 = new FakeConnector('m2', ['groups', 'presence', 'media'])
+  const rt2 = mk(cfg2, connector2)
+  await rt2.start()
   const state = new OperatorState(tdb.handle.db)
-  registry = { accounts: new Map([['m1', rt]]), globalKill: () => state.globalKill() }
-  const store = new TokenStore(tdb.handle.db, clock)
+  registry = {
+    accounts: new Map([
+      ['m1', rt],
+      ['m2', rt2],
+    ]),
+    globalKill: () => state.globalKill(),
+  }
+  store = new TokenStore(tdb.handle.db, clock)
   tokens = {
     reader: (
       await store.create({ name: 'reader', scopes: ['read:messages', 'read:audit'], accountIds: ['m1'] })
@@ -103,6 +119,14 @@ beforeAll(async () => {
       await store.create({ name: 'approver', scopes: ['approver', 'read:audit'], accountIds: ['m1'] })
     ).plaintext,
     other: (await store.create({ name: 'other', scopes: ['admin'], accountIds: ['someone_else'] })).plaintext,
+    scoped: (
+      await store.create({
+        name: 'scoped',
+        scopes: ['read:messages'],
+        accountIds: ['m1'],
+        chatAllowlist: ['nobody@s.whatsapp.net'],
+      })
+    ).plaintext,
   }
   httpApp = createHttpApp({ registry, tokens: store, log, callsPerMinute: 30 })
   httpServer = serve({ fetch: httpApp.app.fetch, hostname: '127.0.0.1', port: 0 })
@@ -120,6 +144,16 @@ beforeAll(async () => {
     }),
   )
   await rt.pipeline.drained()
+  await connector2.emit(
+    textMessage({
+      chatId: chatId2,
+      senderJid: chatId2,
+      providerId: 'IN1',
+      body: 'hi m2',
+      occurredAt: clock.now(),
+    }),
+  )
+  await rt2.pipeline.drained()
 })
 afterAll(async () => {
   await httpApp.closeAll()
@@ -310,6 +344,333 @@ describe('tools', () => {
     }
     expect(limited).toBe(true)
     await c.close().catch(() => undefined)
+  })
+})
+
+describe('errors, filters, and the auto send path', () => {
+  // Each test gets its own admin token so the per-token call limit (30/min) is never hit.
+  const admin = async () =>
+    mcpClient((await store.create({ name: 'admin', scopes: ['admin'], accountIds: ['*'] })).plaintext)
+
+  it('unknown ids, bad cursors, and chat allowlists', async () => {
+    const a = await admin()
+    const accounts = parse<{ accounts: Array<{ account_id: string }> }>(
+      await a.callTool({ name: 'whatsapp_list_accounts', arguments: {} }),
+    )
+    expect(accounts.accounts.map((x) => x.account_id).sort()).toEqual(['m1', 'm2'])
+    const calls: Array<[string, Record<string, unknown>, string]> = [
+      ['whatsapp_get_account_status', { account_id: 'nope' }, 'NOT_FOUND'],
+      ['whatsapp_get_chat', { account_id: 'm1', chat_id: 'ghost@s.whatsapp.net' }, 'NOT_FOUND'],
+      ['whatsapp_get_thread', { account_id: 'm1', chat_id: chatId, message_id: 'nope' }, 'NOT_FOUND'],
+      ['whatsapp_get_messages', { account_id: 'm1', chat_id: chatId, before: 'bogus' }, 'VALIDATION_ERROR'],
+      ['whatsapp_unsubscribe_events', { subscription_id: 'nope' }, 'NOT_FOUND'],
+    ]
+    for (const [name, args, code] of calls) {
+      const r = await a.callTool({ name, arguments: args })
+      expect(r.isError, name).toBe(true)
+      expect(parse(r).error, name).toBe(code)
+    }
+    const res = await a.listResources()
+    expect(res.resources.map((r) => r.uri)).toContain('whatsapp://m2/chats')
+    const pending = await a.readResource({ uri: 'whatsapp://m1/pending-approvals' })
+    expect(JSON.parse((pending.contents[0] as { text: string }).text)).toEqual([])
+    await a.close()
+
+    // Admin on another account: every tool's error path returns FORBIDDEN.
+    const o = await mcpClient(tokens.other)
+    for (const [name, args] of [
+      ['whatsapp_get_chat', { chat_id: chatId }],
+      ['whatsapp_search_messages', { query: 'x' }],
+      ['whatsapp_set_chat_automation', { chat_id: chatId, state: 'paused' }],
+      ['whatsapp_list_actions', {}],
+      ['whatsapp_list_pending_approvals', {}],
+      ['whatsapp_get_audit_log', {}],
+      ['whatsapp_pause_account', {}],
+      ['whatsapp_mark_read', { chat_id: chatId, message_ids: ['IN1'] }],
+      ['whatsapp_react_to_message', { chat_id: chatId, message_id: 'IN1', emoji: null }],
+    ] as const) {
+      const r = await o.callTool({ name, arguments: { account_id: 'm1', ...args } })
+      expect(parse(r).error, name).toBe('FORBIDDEN')
+    }
+    await o.close()
+
+    const s = await mcpClient(tokens.scoped)
+    const denied = await s.callTool({
+      name: 'whatsapp_get_messages',
+      arguments: { account_id: 'm1', chat_id: chatId },
+    })
+    expect(parse(denied).error).toBe('FORBIDDEN')
+    const chats = parse<{ chats: unknown[] }>(
+      await s.callTool({ name: 'whatsapp_list_chats', arguments: { account_id: 'm1' } }),
+    )
+    expect(chats.chats).toEqual([])
+    const search = parse<{ messages: unknown[] }>(
+      await s.callTool({ name: 'whatsapp_search_messages', arguments: { account_id: 'm1', query: 'order' } }),
+    )
+    expect(search.messages).toEqual([])
+    const ev = parse<{ events: unknown[]; next_cursor: number }>(
+      await s.callTool({ name: 'whatsapp_get_events', arguments: { account_id: 'm1' } }),
+    )
+    expect(ev).toEqual({ account_id: 'm1', events: [], next_cursor: 0 })
+    const sub = parse<{ subscription_id: string }>(
+      await s.callTool({ name: 'whatsapp_subscribe_events', arguments: { account_id: 'm1' } }),
+    )
+    expect(sub.subscription_id).toBeTruthy()
+    await s.close()
+  })
+
+  it('read filters and pagination', async () => {
+    const c = await mcpClient(tokens.reader)
+    const chats = parse<{ chats: Array<{ chat_id: string; type: string }> }>(
+      await c.callTool({
+        name: 'whatsapp_list_chats',
+        arguments: { account_id: 'm1', type: 'dm', unread_only: true, limit: 5 },
+      }),
+    )
+    expect(chats.chats.every((x) => x.type === 'dm')).toBe(true)
+    const page1 = parse<{ messages: unknown[]; next_cursor: string; truncated: boolean }>(
+      await c.callTool({
+        name: 'whatsapp_get_messages',
+        arguments: { account_id: 'm1', chat_id: chatId, limit: 1 },
+      }),
+    )
+    expect(page1.truncated).toBe(true)
+    const page2 = parse<{ messages: unknown[] }>(
+      await c.callTool({
+        name: 'whatsapp_get_messages',
+        arguments: {
+          account_id: 'm1',
+          chat_id: chatId,
+          limit: 1,
+          before: page1.next_cursor,
+          include_deleted: true,
+        },
+      }),
+    )
+    expect(page2.messages).not.toEqual(page1.messages)
+    const thread = parse<{ thread: Array<{ message_id: string }> }>(
+      await c.callTool({
+        name: 'whatsapp_get_thread',
+        arguments: { account_id: 'm1', chat_id: chatId, message_id: 'IN1', depth: 1 },
+      }),
+    )
+    expect(thread.thread[0]?.message_id).toBe('IN1')
+    const search = parse<{ messages: unknown[] }>(
+      await c.callTool({
+        name: 'whatsapp_search_messages',
+        arguments: { account_id: 'm1', query: 'order', chat_ids: ['x@s.whatsapp.net'] },
+      }),
+    )
+    expect(search.messages).toEqual([])
+    const ev = parse<{ events: Array<{ type: string }> }>(
+      await c.callTool({
+        name: 'whatsapp_get_events',
+        arguments: {
+          account_id: 'm1',
+          types: ['message.received'],
+          chat_ids: [chatId],
+          include_from_me: false,
+          include_backfill: true,
+        },
+      }),
+    )
+    expect(ev.events.every((e) => e.type === 'message.received')).toBe(true)
+    const actions = parse<{ actions: Array<{ state: string }> }>(
+      await c.callTool({
+        name: 'whatsapp_list_actions',
+        arguments: { account_id: 'm1', state: 'sent', chat_id: chatId },
+      }),
+    )
+    expect(actions.actions.map((x) => x.state)).toEqual(['sent'])
+    const all = parse<{ actions: unknown[] }>(
+      await c.callTool({ name: 'whatsapp_list_actions', arguments: { account_id: 'm1' } }),
+    )
+    expect(all.actions.length).toBeGreaterThanOrEqual(1)
+    const audit = parse<{ entries: unknown[] }>(
+      await c.callTool({
+        name: 'whatsapp_get_audit_log',
+        arguments: { account_id: 'm1', event_id: 'nope', chat_id: chatId },
+      }),
+    )
+    expect(audit.entries).toEqual([])
+    await c.close()
+  })
+
+  it('auto send, rate limit, capability, and policy errors', async () => {
+    const a = await admin()
+    const sent = parse<{ state: string }>(
+      await a.callTool({
+        name: 'whatsapp_send_message',
+        arguments: {
+          account_id: 'm2',
+          chat_id: chatId2,
+          text: 'auto reply',
+          quoted_message_id: 'IN1',
+          typing_delay: 'none',
+          idempotency_key: 'idem-auto-1',
+        },
+      }),
+    )
+    expect(sent.state).toBe('sent')
+    const limited = parse<{ error: string; retry_after_ms: number }>(
+      await a.callTool({
+        name: 'whatsapp_send_message',
+        arguments: { account_id: 'm2', chat_id: chatId2, text: 'second reply' },
+      }),
+    )
+    expect(limited.error).toBe('RATE_LIMITED')
+    expect(typeof limited.retry_after_ms).toBe('number')
+    const react = parse(
+      await a.callTool({
+        name: 'whatsapp_react_to_message',
+        arguments: { account_id: 'm2', chat_id: chatId2, message_id: 'IN1', emoji: '👍' },
+      }),
+    )
+    expect(react.error).toBe('CAPABILITY_UNSUPPORTED')
+    const read = await a.callTool({
+      name: 'whatsapp_mark_read',
+      arguments: { account_id: 'm2', chat_id: chatId2, message_ids: ['IN1'] },
+    })
+    expect(read.isError).toBeFalsy()
+    expect(parse(read).kind).toBe('mark_read')
+    await a.close()
+  })
+
+  it('rejected, unknown, and expired approvals', async () => {
+    const sender = await mcpClient(tokens.sender)
+    const a = await admin()
+    const submit = async (text: string, key: string) =>
+      parse<{ approval_code: string }>(
+        await sender.callTool({
+          name: 'whatsapp_send_message',
+          arguments: { account_id: 'm1', chat_id: chatId, text, idempotency_key: key },
+        }),
+      ).approval_code
+    clock.advance(31_000) // past the per-chat send interval of the earlier approved send
+    const code1 = await submit('please reject me', 'idem-reject-1')
+    const rejected = parse<{ state: string; result: { reason: string } }>(
+      await a.callTool({
+        name: 'whatsapp_reject_action',
+        arguments: { account_id: 'm1', approval_code: code1, reason: 'nope' },
+      }),
+    )
+    expect(rejected).toMatchObject({ state: 'rejected', result: { reason: 'nope' } })
+    const unknown = parse(
+      await a.callTool({
+        name: 'whatsapp_approve_action',
+        arguments: { account_id: 'm1', approval_code: code1 },
+      }),
+    )
+    expect(unknown).toMatchObject({ error: 'NOT_FOUND', approval_error: 'NOT_FOUND' })
+    const code2 = await submit('I will expire', 'idem-expire-1')
+    clock.advance(5 * 3600_000)
+    const expired = parse(
+      await a.callTool({
+        name: 'whatsapp_approve_action',
+        arguments: { account_id: 'm1', approval_code: code2 },
+      }),
+    )
+    expect(expired).toMatchObject({ error: 'FORBIDDEN', approval_error: 'EXPIRED' })
+    await sender.close()
+    await a.close()
+  })
+
+  it('chat automation and account pause', async () => {
+    const sender = await mcpClient(tokens.sender)
+    const a = await admin()
+    const paused = parse<{ paused_until: string | null }>(
+      await sender.callTool({
+        name: 'whatsapp_set_chat_automation',
+        arguments: { account_id: 'm1', chat_id: chatId, state: 'paused', paused_minutes: 5 },
+      }),
+    )
+    expect(paused.paused_until).not.toBeNull()
+    const resumeDenied = parse(
+      await sender.callTool({
+        name: 'whatsapp_set_chat_automation',
+        arguments: { account_id: 'm1', chat_id: chatId, state: 'active' },
+      }),
+    )
+    expect(resumeDenied).toMatchObject({ error: 'FORBIDDEN', required_scope: 'admin' })
+    const resumed = parse<{ automation: string; paused_until: string | null }>(
+      await a.callTool({
+        name: 'whatsapp_set_chat_automation',
+        arguments: { account_id: 'm1', chat_id: chatId, state: 'active' },
+      }),
+    )
+    expect(resumed).toMatchObject({ automation: 'active', paused_until: null })
+
+    expect(
+      parse(await a.callTool({ name: 'whatsapp_pause_account', arguments: { account_id: 'm1' } })),
+    ).toEqual({
+      account_id: 'm1',
+      paused: true,
+    })
+    const killed = parse(
+      await sender.callTool({
+        name: 'whatsapp_send_message',
+        arguments: { account_id: 'm1', chat_id: chatId, text: 'while paused' },
+      }),
+    )
+    expect(killed).toMatchObject({ error: 'POLICY_BLOCKED', check: 'kill_switch' })
+    expect(
+      parse(await a.callTool({ name: 'whatsapp_resume_account', arguments: { account_id: 'm1' } })),
+    ).toEqual({
+      account_id: 'm1',
+      paused: false,
+    })
+    const status = parse<{ connection: string; global_kill: boolean }>(
+      await a.callTool({ name: 'whatsapp_get_account_status', arguments: { account_id: 'm1' } }),
+    )
+    expect(status).toMatchObject({ connection: 'connected', global_kill: false })
+    const denied = parse(
+      await sender.callTool({ name: 'whatsapp_pause_account', arguments: { account_id: 'm1' } }),
+    )
+    expect(denied).toMatchObject({ error: 'FORBIDDEN', required_scope: 'admin' })
+    await sender.close()
+    await a.close()
+  })
+
+  it('http: bad session starts, token/session mismatch, revoked and expired tokens, session close', async () => {
+    const post = (headers: Record<string, string>, body = '{"jsonrpc":"2.0","id":1,"method":"ping"}') =>
+      fetch(`${baseUrl}/mcp`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+          ...headers,
+        },
+        body,
+      })
+    expect((await fetch(`${baseUrl}/readyz`)).status).toBe(200)
+    expect((await post({ authorization: `Bearer ${tokens.reader}` })).status).toBe(400)
+    expect((await post({ authorization: `Bearer ${tokens.reader}` }, 'not json')).status).toBe(400)
+    expect((await post({ authorization: `Bearer ${tokens.reader}`, origin: 'not a url' })).status).toBe(403)
+    expect((await post({ authorization: `Bearer ${tokens.reader}`, 'mcp-session-id': 'nope' })).status).toBe(
+      404,
+    )
+    const client = new Client({ name: 'raw', version: '0' }, { capabilities: {} })
+    const transport = new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), {
+      requestInit: { headers: { authorization: `Bearer ${tokens.reader}` } },
+    })
+    await client.connect(transport as unknown as Transport)
+    const sid = transport.sessionId as string
+    expect(httpApp.sessions.has(sid)).toBe(true)
+    expect((await post({ authorization: `Bearer ${tokens.sender}`, 'mcp-session-id': sid })).status).toBe(401)
+    await transport.terminateSession()
+    expect(httpApp.sessions.has(sid)).toBe(false)
+    await client.close()
+    const revoked = await store.create({ name: 'revoked', scopes: ['admin'], accountIds: ['*'] })
+    await store.revoke(revoked.id)
+    expect((await post({ authorization: `Bearer ${revoked.plaintext}` })).status).toBe(401)
+    const expiring = await store.create({
+      name: 'expiring',
+      scopes: ['admin'],
+      accountIds: ['*'],
+      ttlDays: 0,
+    })
+    clock.advance(1)
+    expect((await post({ authorization: `Bearer ${expiring.plaintext}` })).status).toBe(401)
   })
 })
 
