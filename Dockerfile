@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
 FROM node:26-slim AS build
-RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
+# Node 25+ images no longer bundle Corepack, so install pnpm directly.
+RUN npm install -g pnpm@10.28.0
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json ./
 COPY packages/core/package.json packages/core/
