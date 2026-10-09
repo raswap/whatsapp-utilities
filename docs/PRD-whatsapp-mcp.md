@@ -37,7 +37,7 @@ Every outbound action, whether from a rule or an agent, passes through one **pol
 | D5 | Model provider | Claude API; fast model for classification, stronger model for drafting; provider behind an interface; model ids in config | Best quality per cost | Low |
 | D6 | Local-model option | Out of scope for v1; chats can be opted out of LLM processing entirely | Keeps v1 small | Medium |
 | D7 | Bridge to other systems | `call_tool` to registered MCP servers and webhooks ships in P1; nothing trading-specific in this repo | Keeps the repo generic | None |
-| D8 | Language and runtime | TypeScript, Node.js 22 LTS | Baileys and the MCP SDK are Node-first | High after P0 |
+| D8 | Language and runtime | TypeScript, Node.js 26 (LTS from October 2026) | Baileys and the MCP SDK are Node-first | High after P0 |
 | D9 | Storage | PostgreSQL 16 with one schema per account (`acct_<id>`) and an `operator` schema; application-level AES-256-GCM for session state, tokens, and phone numbers; message bodies plaintext for `tsvector` search; media on local disk under `data/<account>/media/` | Per-account blast radius for backup, restore, purge via schema; real concurrency from day one | High after P0a (tech-stack T3 to T7) |
 | D10 | Automation number | Run automation on a dedicated number. The operator's own phone number(s) are registered as `operator_numbers` and are how the operator commands the system from a phone | Unofficial protocol carries ban risk; keeps the personal number clean | None |
 | D11 | Operator channel | At least one **non-WhatsApp** operator channel (email or HTTP webhook, for example an ntfy or Telegram relay) is required when any Web account exists, because WhatsApp itself is the channel most likely to be down | Logout and connector-down alerts must still arrive | None |
@@ -682,7 +682,7 @@ targets:
 | Timezone | All windows, cron, and schedule evaluation convert the UTC instant to the account's IANA zone (rule-level override allowed); host-local time is never used; DST gap times are treated as the next valid instant, repeated hours match both occurrences |
 | Backups | `wamcp backup` runs `pg_dump --schema=acct_<id>` per account (and the `operator` schema), encrypts the dump under the master key with the key id recorded, plus an hourly `session.enc` sidecar of the live session state; daily by default, 7 retained; `wamcp restore --db-only` restores the schema and keeps the live session sidecar, `--full` restores both and documents that it may require re-pair |
 | Upgrades | Migrations forward-only, one transaction each, `schema_version` last; `wamcp migrate --dry-run`; `migrate_on_start` option |
-| Portability | Node 22 on Linux and macOS; Docker image; reference systemd unit and compose file |
+| Portability | Node 26 on Linux and macOS; Docker image; reference systemd unit and compose file |
 | Testability | Fake connector replaying fixtures; `evaluate` pure; LLM provider mocked with recorded responses |
 
 ---

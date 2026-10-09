@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:22-slim AS build
+FROM node:26-slim AS build
 RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json ./
@@ -13,7 +13,7 @@ COPY packages packages
 ENV CI=true
 RUN pnpm build && pnpm prune --prod
 
-FROM node:22-slim
+FROM node:26-slim
 ENV NODE_ENV=production
 # Debian bookworm ships client 15; pg_dump must match the Postgres 16 server, so use the PGDG repo.
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg tini \

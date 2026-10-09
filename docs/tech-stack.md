@@ -4,7 +4,7 @@ Decided with the owner on 2026-10-08 before the first line of P0a code. Each row
 
 | # | Area | Decision | Notes |
 | --- | --- | --- | --- |
-| T1 | Runtime | TypeScript on Node.js 22 LTS | ESM throughout |
+| T1 | Runtime | TypeScript on Node.js 26 (LTS from 2026-10-28) | ESM throughout. Decided 2026-10-09: moved from 22 ahead of the 26 LTS promotion; Node major bumps stay deliberate |
 | T2 | WhatsApp Web library | `@whiskeysockets/baileys` pinned to exactly `7.0.0-rc14` | The `latest` tag; tracks current protocol including LID identities. Upgrades are deliberate and go through `wamcp doctor`'s known-good list |
 | T3 | Database | PostgreSQL 16, shipped in `docker-compose.yml` beside the server | Replaces the PRD v0.3 SQLite choice (D9). Backups via `pg_dump` per schema |
 | T4 | Data access | Drizzle ORM for typed queries; DDL as SQL migration files with a `__SCHEMA__` placeholder, applied per schema by the application and tracked in `<schema>.schema_migrations` | Chosen over Prisma because Drizzle's `pgSchema(name)` supports schemas created at runtime; hand-written SQL keeps the per-schema runner CLI-free |
@@ -23,7 +23,7 @@ Decided with the owner on 2026-10-08 before the first line of P0a code. Each row
 | T17 | Config | `wamcp.yaml` for configuration; secrets only from environment or `.env` (`DATABASE_URL`, SMTP password, provider keys) | Rules are also YAML |
 | T18 | Logging | pino with a redaction list covering tokens, keys, phone numbers, and message bodies; `pino-pretty` in dev | Baileys receives the same logger |
 | T19 | Identifiers | ULIDs for events, actions, approvals; WhatsApp message ids pre-generated before send | |
-| T20 | Docker | `node:22-slim` multi-stage image | |
+| T20 | Docker | `node:26-slim` multi-stage image | |
 | T21 | License | None; all rights reserved | No `LICENSE` file is added on purpose |
 | T22 | Delivery | One pull request per vertical slice, 4 to 6 for P0a, each against `main` with tests | |
 | T23 | CI | GitHub Actions on every PR and push to `main`: Biome, tsc, vitest with coverage posted to the PR; CodeQL on PRs and weekly; Dependabot weekly for npm, Actions, and Docker with Baileys excluded | Decided 2026-10-08; see `docs/ci-cd.md` |

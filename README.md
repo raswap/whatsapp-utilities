@@ -8,7 +8,7 @@ Status: **P0a**. Personal and Business App accounts over the WhatsApp Web protoc
 
 ## Day one
 
-Requirements: Node 22, pnpm 10, Postgres 16 reachable (the shipped `docker-compose.yml` provides one), and one non-WhatsApp alert channel (an ntfy topic, a Telegram relay, a Slack incoming webhook, or SMTP email).
+Requirements: Node 26, pnpm 10, Postgres 16 reachable (the shipped `docker-compose.yml` provides one), and one non-WhatsApp alert channel (an ntfy topic, a Telegram relay, a Slack incoming webhook, or SMTP email).
 
 ```bash
 pnpm install && pnpm build
