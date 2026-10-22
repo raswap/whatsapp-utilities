@@ -431,6 +431,15 @@ describe('executor', () => {
     )
     expect(s.state).toBe('sent')
     expect((await pipeline.chats.get(chatId))?.automationState).toBe('paused')
+    const until = new Date('2026-06-02T10:00:00Z')
+    await executor.submit(
+      plan({
+        kind: 'set_chat_automation',
+        payload: { state: 'paused', pausedUntil: until },
+        text: undefined,
+      }),
+    )
+    expect((await pipeline.chats.get(chatId))?.pausedUntil?.getTime()).toBe(until.getTime())
   })
 
   it('pipeline handler ignores echoes of already-sent actions, unknown ids, and edits without actions', async () => {
