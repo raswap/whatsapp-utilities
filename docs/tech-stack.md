@@ -31,6 +31,14 @@ Decided with the owner on 2026-10-08 before the first line of P0a code. Each row
 | T25 | Branch protection | `main` requires a PR and passing `ci` and `codeql` checks, up to date with base | Set by hand; the automation cannot change repo settings |
 | T26 | Production host | Undecided; Docker compose and systemd paths are both shipped and documented | |
 | T27 | Dependency versions | Every `package.json` pins exact versions; `.npmrc` sets `save-exact=true` so `pnpm add` pins too. Dependabot proposes every bump as its own PR | Decided 2026-10-09 |
+| T28 | Regex engine | `re2js` 2.9.0 (pure-JS RE2 port, linear time) for rule `regex` conditions | Decided 2026-10-22; replaces the PRD's native `re2` to avoid a native build in the image |
+| T29 | Scheduler | Per-account `scheduled_jobs` table polled by the runtime; `croner` 10.0.1 computes cron runs in the account's IANA zone | Decided 2026-10-22; FR-X4 persistence and cancellation |
+| T30 | Templating | `mustache` 4.2.0 with a variable whitelist and per-channel escaping around it | Decided 2026-10-22; FR-R3 |
+| T31 | Language condition | Deferred to P2 (`understand.language`); P1 validation rejects `language` with a clear message | Decided 2026-10-22 |
+| T32 | Outbound targets, SSRF | Private, loopback, link-local and metadata ranges refused at validation and at call time (resolved IP pinned, no redirects) unless the target sets `allow_private: true` | Decided 2026-10-22 |
+| T33 | Bridge failures | `call_tool` and `notify` fail once, no retry; one operator alert per rule per hour; counts toward the 5-error suspension | Decided 2026-10-22 |
+| T34 | Keyword matching | Case-insensitive, NFKC-normalised, diacritics stripped, substring; `regex` for precision | Decided 2026-10-22 |
+| T35 | P1 delivery | Five PRs: schema+storage+import; engine+conditions+actions+wiring; triggers; test_rule+explain_event+tools+CLI; bridge | Decided 2026-10-22; see `docs/rule-engine-design.md` |
 
 ## P0a pull request plan
 
