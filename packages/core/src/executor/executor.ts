@@ -441,7 +441,8 @@ export class Executor {
             await this.o.chats.setAutomation(
               p.chatId,
               p.payload.state as 'active' | 'paused' | 'escalated',
-              (p.payload.pausedUntil as Date | null) ?? null,
+              // The payload is JSON after the database round trip, so a date arrives as a string.
+              p.payload.pausedUntil ? new Date(p.payload.pausedUntil as string) : null,
             )
           break
         default:
