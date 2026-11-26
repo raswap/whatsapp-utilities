@@ -1,5 +1,15 @@
 import { sql } from 'drizzle-orm'
-import { bigserial, boolean, index, jsonb, pgSchema, text, timestamp } from 'drizzle-orm/pg-core'
+import {
+  bigserial,
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgSchema,
+  primaryKey,
+  text,
+  timestamp,
+} from 'drizzle-orm/pg-core'
 
 /** Shared, operator-owned data. One instance per deployment. */
 export const operatorSchema = pgSchema('operator')
@@ -55,4 +65,35 @@ export const operatorAudit = operatorSchema.table('audit_log', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const operatorTables = { accounts, tokens, operatorSettings, operatorAudit }
+/** Global rules: a rule whose scope has no `account` key (PRD §7.5). Same columns as the account tables. */
+export const operatorRules = operatorSchema.table('rules', {
+  id: text('id').primaryKey(),
+  version: integer('version').notNull().default(1),
+  yaml: text('yaml').notNull(),
+  enabled: boolean('enabled').notNull().default(false),
+  suspendedReason: text('suspended_reason'),
+  suspendedAt: timestamp('suspended_at', { withTimezone: true }),
+  errorCount: integer('error_count').notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const operatorRuleVersions = operatorSchema.table(
+  'rule_versions',
+  {
+    ruleId: text('rule_id').notNull(),
+    version: integer('version').notNull(),
+    yaml: text('yaml').notNull(),
+    actor: text('actor').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.ruleId, t.version] })],
+)
+
+export const operatorTables = {
+  accounts,
+  tokens,
+  operatorSettings,
+  operatorAudit,
+  operatorRules,
+  operatorRuleVersions,
+}

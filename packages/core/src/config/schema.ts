@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TargetsSchema } from '../rules/schema.js'
 
 const IanaZone = z
   .string()
@@ -103,6 +104,8 @@ export const WamcpConfigSchema = z.object({
   server: ServerConfigSchema.default({}),
   operator: OperatorSchema.default({}),
   accounts: z.array(AccountConfigSchema).default([]),
+  /** Registered outbound targets for `notify` and `call_tool` (PRD §10.6). */
+  targets: TargetsSchema.default({}),
 })
 
 export type WamcpConfig = z.infer<typeof WamcpConfigSchema>

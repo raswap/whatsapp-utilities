@@ -30,10 +30,10 @@ afterAll(async () => {
 describe('migrations and provisioning', () => {
   it('applies operator migrations once and is idempotent', async () => {
     const first = await provisionOperator(tdb.handle)
-    expect(first.applied).toEqual(['0001_init.sql'])
+    expect(first.applied).toEqual(['0001_init.sql', '0002_rules.sql'])
     const second = await provisionOperator(tdb.handle)
     expect(second.applied).toEqual([])
-    expect(second.skipped).toEqual(['0001_init.sql'])
+    expect(second.skipped).toEqual(['0001_init.sql', '0002_rules.sql'])
     expect(await pendingMigrations(tdb.handle.pool, 'operator', 'operator')).toEqual([])
   })
 
