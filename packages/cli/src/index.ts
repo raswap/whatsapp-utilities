@@ -8,6 +8,7 @@ import { registerBackup } from './commands/backup.js'
 import { registerDoctor } from './commands/doctor.js'
 import { registerInit } from './commands/init.js'
 import { registerMcp } from './commands/mcp.js'
+import { registerRules } from './commands/rules.js'
 import { registerServe } from './commands/serve.js'
 import { registerStatus } from './commands/status.js'
 import { registerTail } from './commands/tail.js'
@@ -34,6 +35,7 @@ registerTokens(program)
 registerBackup(program)
 registerAlerts(program)
 registerMcp(program)
+registerRules(program)
 
 program.parseAsync(process.argv).catch((e: Error) => {
   process.stderr.write(`error: ${e.message}\n`)
