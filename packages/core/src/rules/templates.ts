@@ -102,7 +102,13 @@ export type TemplateVars = Record<string, Record<string, unknown>>
  * escaping; name fields are capped at 64 chars and the output at 4 096 (FR-R3).
  */
 export function renderTemplate(template: string, vars: TemplateVars, channel: TemplateChannel): string {
-  const safe = template.replace(/\{\{\{\s*([^}]*?)\s*\}\}\}/g, '{{$1}}').replace(/\{\{\s*&/g, '{{')
+  // Linear rewrites (no backtracking regex on template text): `{{{x}}}` -> `{{x}}`, `{{&x}}` -> `{{x}}`.
+  const safe = template
+    .replaceAll('{{{', '{{')
+    .replaceAll('}}}', '}}')
+    .split('{{')
+    .map((chunk, i) => (i === 0 ? chunk : chunk.replace(/^\s*&/, '')))
+    .join('{{')
   const view: TemplateVars = { ...vars }
   for (const [ns, field] of NAME_FIELDS) {
     const v = view[ns]?.[field]
