@@ -1,0 +1,26 @@
+{
+  "traces": [
+    {
+      "ruleId": "a4",
+      "specificity": 0,
+      "outcome": "blocked",
+      "conditions": [],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "send_message",
+          "status": "denied",
+          "reason": "send_message denied by a scope-matched rule"
+        }
+      ]
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:a4:matches",
+      "by": 1
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "traces": [
+    {
+      "ruleId": "c21b",
+      "specificity": 0,
+      "outcome": "not_matched",
+      "reason": "conditions",
+      "conditions": [
+        {
+          "name": "all_of.0.keywords",
+          "passed": true,
+          "detail": "refund"
+        },
+        {
+          "name": "all_of.1.message_type",
+          "passed": false,
+          "detail": "text"
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": []
+}

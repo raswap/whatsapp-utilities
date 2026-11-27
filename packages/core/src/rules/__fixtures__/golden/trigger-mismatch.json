@@ -1,0 +1,15 @@
+{
+  "traces": [
+    {
+      "ruleId": "t8",
+      "specificity": 0,
+      "outcome": "not_matched",
+      "reason": "trigger",
+      "conditions": [],
+      "actions": []
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": []
+}

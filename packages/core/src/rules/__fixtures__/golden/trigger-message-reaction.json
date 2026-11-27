@@ -1,0 +1,43 @@
+{
+  "traces": [
+    {
+      "ruleId": "t3",
+      "specificity": 0,
+      "outcome": "matched",
+      "conditions": [],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "set_label",
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "set_label",
+      "source": "rule:t3",
+      "actor": "rule:t3",
+      "idempotencyKey": "rule:t3:01EVENT:0",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "label": "reacted"
+      },
+      "ruleId": "t3",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "approval": "auto",
+      "allowQuietOverride": false,
+      "deniedKinds": []
+    }
+  ],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:t3:matches",
+      "by": 1
+    }
+  ]
+}

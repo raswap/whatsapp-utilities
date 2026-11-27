@@ -1,0 +1,44 @@
+{
+  "traces": [
+    {
+      "ruleId": "t2",
+      "specificity": 0,
+      "outcome": "matched",
+      "conditions": [],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "mark_read",
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "mark_read",
+      "source": "rule:t2",
+      "actor": "rule:t2",
+      "idempotencyKey": "rule:t2:01EVENT:0",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "providerIds": ["P1"]
+      },
+      "ruleId": "t2",
+      "eventId": "01EVENT",
+      "inboundOrigin": "other_device",
+      "bodyHash": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+      "approval": "auto",
+      "allowQuietOverride": false,
+      "deniedKinds": []
+    }
+  ],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:t2:matches",
+      "by": 1
+    }
+  ]
+}

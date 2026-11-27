@@ -1,0 +1,21 @@
+{
+  "traces": [
+    {
+      "ruleId": "c17",
+      "specificity": 0,
+      "outcome": "not_matched",
+      "reason": "conditions",
+      "conditions": [
+        {
+          "name": "skip_if_human_replied_within",
+          "passed": false,
+          "detail": "2026-06-01T09:59:30.000Z"
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": []
+}

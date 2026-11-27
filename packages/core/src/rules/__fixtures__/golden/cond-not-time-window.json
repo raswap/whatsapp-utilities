@@ -1,0 +1,20 @@
+{
+  "traces": [
+    {
+      "ruleId": "c16",
+      "specificity": 0,
+      "outcome": "not_matched",
+      "reason": "conditions",
+      "conditions": [
+        {
+          "name": "not_time_window",
+          "passed": false
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": []
+}

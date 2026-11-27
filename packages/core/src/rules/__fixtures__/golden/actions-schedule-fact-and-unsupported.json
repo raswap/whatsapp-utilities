@@ -1,0 +1,90 @@
+{
+  "traces": [
+    {
+      "ruleId": "a2",
+      "specificity": 0,
+      "outcome": "matched",
+      "conditions": [
+        {
+          "name": "sender",
+          "passed": true,
+          "detail": "C1"
+        }
+      ],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "schedule",
+          "status": "planned"
+        },
+        {
+          "index": 1,
+          "kind": "notify",
+          "status": "unsupported",
+          "reason": "notify needs the target bridge"
+        },
+        {
+          "index": 2,
+          "kind": "call_tool",
+          "status": "unsupported",
+          "reason": "call_tool needs the target bridge"
+        },
+        {
+          "index": 3,
+          "kind": "set_chat_automation",
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "set_chat_automation",
+      "source": "rule:a2",
+      "actor": "rule:a2",
+      "idempotencyKey": "rule:a2:01EVENT:3",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "state": "active",
+        "pausedUntil": null
+      },
+      "ruleId": "a2",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+      "approval": "approve",
+      "allowQuietOverride": false,
+      "deniedKinds": []
+    }
+  ],
+  "effects": [
+    {
+      "kind": "schedule",
+      "ruleId": "a2",
+      "index": 0,
+      "runAt": "2026-06-01T11:00:00.000Z",
+      "chatId": "cust@s.whatsapp.net",
+      "eventId": "01EVENT",
+      "bodyHash": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+      "payload": {
+        "effect": {
+          "kind": "remember_fact",
+          "ruleId": "a2",
+          "index": 0,
+          "subjectType": "chat",
+          "subjectId": "cust@s.whatsapp.net",
+          "key": "followup",
+          "value": "hello",
+          "expiresAt": null
+        }
+      }
+    }
+  ],
+  "deltas": [
+    {
+      "counter": "rule:a2:matches",
+      "by": 1
+    }
+  ]
+}

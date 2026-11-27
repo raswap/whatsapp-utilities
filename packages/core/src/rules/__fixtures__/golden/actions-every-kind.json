@@ -1,0 +1,284 @@
+{
+  "traces": [
+    {
+      "ruleId": "a1",
+      "specificity": 40,
+      "outcome": "matched",
+      "conditions": [],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "send_message",
+          "status": "planned"
+        },
+        {
+          "index": 1,
+          "kind": "react_to_message",
+          "status": "planned"
+        },
+        {
+          "index": 2,
+          "kind": "mark_read",
+          "status": "planned"
+        },
+        {
+          "index": 3,
+          "kind": "set_label",
+          "status": "planned"
+        },
+        {
+          "index": 4,
+          "kind": "remove_label",
+          "status": "planned"
+        },
+        {
+          "index": 5,
+          "kind": "escalate",
+          "status": "planned"
+        },
+        {
+          "index": 6,
+          "kind": "notify_operator",
+          "status": "planned"
+        },
+        {
+          "index": 7,
+          "kind": "set_chat_automation",
+          "status": "planned"
+        },
+        {
+          "index": 8,
+          "kind": "remember_fact",
+          "status": "planned"
+        },
+        {
+          "index": 9,
+          "kind": "schedule",
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "send_message",
+      "source": "rule:a1",
+      "actor": "rule:a1",
+      "idempotencyKey": "rule:a1:01EVENT:0",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "text": "Hi Asha, re: *hi* there",
+        "typing_delay": "natural",
+        "quotedProviderId": "P1"
+      },
+      "ruleId": "a1",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "461d80bfaf1d268f717c0f7c0703c37978a70f5c3f0f0f4364a9d078bafc207b",
+      "approval": "auto",
+      "overrideQuietHours": true,
+      "allowQuietOverride": true,
+      "deniedKinds": [],
+      "text": "Hi Asha, re: *hi* there"
+    },
+    {
+      "kind": "react_to_message",
+      "source": "rule:a1",
+      "actor": "rule:a1",
+      "idempotencyKey": "rule:a1:01EVENT:1",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "providerId": "P1",
+        "emoji": "👍"
+      },
+      "ruleId": "a1",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "461d80bfaf1d268f717c0f7c0703c37978a70f5c3f0f0f4364a9d078bafc207b",
+      "approval": "auto",
+      "overrideQuietHours": true,
+      "allowQuietOverride": true,
+      "deniedKinds": []
+    },
+    {
+      "kind": "mark_read",
+      "source": "rule:a1",
+      "actor": "rule:a1",
+      "idempotencyKey": "rule:a1:01EVENT:2",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "providerIds": ["P1"]
+      },
+      "ruleId": "a1",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "461d80bfaf1d268f717c0f7c0703c37978a70f5c3f0f0f4364a9d078bafc207b",
+      "approval": "auto",
+      "overrideQuietHours": true,
+      "allowQuietOverride": true,
+      "deniedKinds": []
+    },
+    {
+      "kind": "set_label",
+      "source": "rule:a1",
+      "actor": "rule:a1",
+      "idempotencyKey": "rule:a1:01EVENT:3",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "label": "vip"
+      },
+      "ruleId": "a1",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "461d80bfaf1d268f717c0f7c0703c37978a70f5c3f0f0f4364a9d078bafc207b",
+      "approval": "auto",
+      "overrideQuietHours": true,
+      "allowQuietOverride": true,
+      "deniedKinds": []
+    },
+    {
+      "kind": "remove_label",
+      "source": "rule:a1",
+      "actor": "rule:a1",
+      "idempotencyKey": "rule:a1:01EVENT:4",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "label": "new"
+      },
+      "ruleId": "a1",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "461d80bfaf1d268f717c0f7c0703c37978a70f5c3f0f0f4364a9d078bafc207b",
+      "approval": "auto",
+      "overrideQuietHours": true,
+      "allowQuietOverride": true,
+      "deniedKinds": []
+    },
+    {
+      "kind": "escalate",
+      "source": "rule:a1",
+      "actor": "rule:a1",
+      "idempotencyKey": "rule:a1:01EVENT:5",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "reason": "escalated by rule"
+      },
+      "ruleId": "a1",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "461d80bfaf1d268f717c0f7c0703c37978a70f5c3f0f0f4364a9d078bafc207b",
+      "approval": "auto",
+      "overrideQuietHours": true,
+      "allowQuietOverride": true,
+      "deniedKinds": []
+    },
+    {
+      "kind": "notify_operator",
+      "source": "rule:a1",
+      "actor": "rule:a1",
+      "idempotencyKey": "rule:a1:01EVENT:6",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "title": "From Asha",
+        "level": "info"
+      },
+      "ruleId": "a1",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "461d80bfaf1d268f717c0f7c0703c37978a70f5c3f0f0f4364a9d078bafc207b",
+      "approval": "auto",
+      "overrideQuietHours": true,
+      "allowQuietOverride": true,
+      "deniedKinds": [],
+      "text": "\\*hi\\* there"
+    },
+    {
+      "kind": "set_chat_automation",
+      "source": "rule:a1",
+      "actor": "rule:a1",
+      "idempotencyKey": "rule:a1:01EVENT:7",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "state": "paused",
+        "pausedUntil": "2026-06-01T11:00:00.000Z"
+      },
+      "ruleId": "a1",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "461d80bfaf1d268f717c0f7c0703c37978a70f5c3f0f0f4364a9d078bafc207b",
+      "approval": "auto",
+      "overrideQuietHours": true,
+      "allowQuietOverride": true,
+      "deniedKinds": []
+    }
+  ],
+  "effects": [
+    {
+      "kind": "remember_fact",
+      "ruleId": "a1",
+      "index": 8,
+      "subjectType": "contact",
+      "subjectId": "C1",
+      "key": "last_seen",
+      "value": "2026-06-01T10:00:00.000Z",
+      "expiresAt": "2026-08-30T10:00:00.000Z"
+    },
+    {
+      "kind": "schedule",
+      "ruleId": "a1",
+      "index": 9,
+      "runAt": "2026-06-01T10:10:00.000Z",
+      "chatId": "cust@s.whatsapp.net",
+      "eventId": "01EVENT",
+      "bodyHash": "461d80bfaf1d268f717c0f7c0703c37978a70f5c3f0f0f4364a9d078bafc207b",
+      "payload": {
+        "planned": {
+          "kind": "send_message",
+          "source": "rule:a1",
+          "actor": "rule:a1",
+          "idempotencyKey": "rule:a1:01EVENT:9",
+          "chatId": "cust@s.whatsapp.net",
+          "recipientContactId": "C1",
+          "payload": {
+            "text": "Still there?"
+          },
+          "ruleId": "a1",
+          "eventId": "01EVENT",
+          "inboundOrigin": null,
+          "bodyHash": "461d80bfaf1d268f717c0f7c0703c37978a70f5c3f0f0f4364a9d078bafc207b",
+          "approval": "auto",
+          "overrideQuietHours": true,
+          "allowQuietOverride": true,
+          "deniedKinds": [],
+          "text": "Still there?"
+        }
+      }
+    }
+  ],
+  "deltas": [
+    {
+      "counter": "rule:a1:matches",
+      "by": 1
+    },
+    {
+      "counter": "rule:a1:rate:0:chat:cust@s.whatsapp.net:20605",
+      "by": 1
+    },
+    {
+      "counter": "rule:a1:rate:0:contact:C1:494530",
+      "by": 1
+    },
+    {
+      "counter": "rule:a1:rate:0:rule:-:20605",
+      "by": 1
+    }
+  ]
+}

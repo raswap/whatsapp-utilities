@@ -1,0 +1,21 @@
+{
+  "traces": [
+    {
+      "ruleId": "c3",
+      "specificity": 0,
+      "outcome": "not_matched",
+      "reason": "conditions",
+      "conditions": [
+        {
+          "name": "deny_list",
+          "passed": false,
+          "detail": "C1"
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": []
+}

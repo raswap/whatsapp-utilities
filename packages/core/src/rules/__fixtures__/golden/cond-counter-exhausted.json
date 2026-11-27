@@ -1,0 +1,21 @@
+{
+  "traces": [
+    {
+      "ruleId": "c13b",
+      "specificity": 0,
+      "outcome": "not_matched",
+      "reason": "conditions",
+      "conditions": [
+        {
+          "name": "counter",
+          "passed": false,
+          "detail": "matches=3"
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": []
+}

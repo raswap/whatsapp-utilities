@@ -1,5 +1,13 @@
 import { WebConnector } from '@wamcp/connector-web'
-import { type AccountRuntime, createAccountRuntime, FakeConnector, tablesFor } from '@wamcp/core'
+import {
+  type AccountRuntime,
+  createAccountRuntime,
+  FakeConnector,
+  operatorRules,
+  operatorRuleVersions,
+  RuleStore,
+  tablesFor,
+} from '@wamcp/core'
 import type { CliContext } from './context.js'
 
 export interface BuildOptions {
@@ -15,6 +23,11 @@ export interface BuildOptions {
 /** Builds an AccountRuntime per configured account (PRD §9 process model). */
 export async function buildRuntimes(ctx: CliContext, o: BuildOptions): Promise<Map<string, AccountRuntime>> {
   const out = new Map<string, AccountRuntime>()
+  const globalRules = new RuleStore(
+    ctx.handle.db,
+    { rules: operatorRules, ruleVersions: operatorRuleVersions },
+    { accountId: null, targets: ctx.config.targets, clock: ctx.clock },
+  )
   for (const cfg of ctx.config.accounts) {
     if (o.only && cfg.id !== o.only) continue
     const schemaName = `acct_${cfg.id}`
@@ -49,6 +62,8 @@ export async function buildRuntimes(ctx: CliContext, o: BuildOptions): Promise<M
         clock: ctx.clock,
         log: ctx.log,
         operator: ctx.operator,
+        globalRules,
+        targets: ctx.config.targets,
         backfillAgeThresholdMs: ctx.config.server.backfill_age_threshold_seconds * 1000,
         approvalTtlMs: ctx.config.server.approval_ttl_hours * 3600_000,
         unknownResolveWindowMs: ctx.config.server.unknown_resolve_window_minutes * 60_000,

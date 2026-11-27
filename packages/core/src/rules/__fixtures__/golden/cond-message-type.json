@@ -1,0 +1,49 @@
+{
+  "traces": [
+    {
+      "ruleId": "c7",
+      "specificity": 0,
+      "outcome": "matched",
+      "conditions": [
+        {
+          "name": "message_type",
+          "passed": true,
+          "detail": "voice"
+        }
+      ],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "set_label",
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "set_label",
+      "source": "rule:c7",
+      "actor": "rule:c7",
+      "idempotencyKey": "rule:c7:01EVENT:0",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "label": "hit"
+      },
+      "ruleId": "c7",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "approval": "auto",
+      "allowQuietOverride": false,
+      "deniedKinds": []
+    }
+  ],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:c7:matches",
+      "by": 1
+    }
+  ]
+}

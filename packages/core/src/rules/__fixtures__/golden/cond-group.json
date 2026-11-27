@@ -1,0 +1,49 @@
+{
+  "traces": [
+    {
+      "ruleId": "c4",
+      "specificity": 40,
+      "outcome": "matched",
+      "conditions": [
+        {
+          "name": "group",
+          "passed": true
+        }
+      ],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "set_label",
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "set_label",
+      "source": "rule:c4",
+      "actor": "rule:c4",
+      "idempotencyKey": "rule:c4:01EVENT:0",
+      "chatId": "120@g.us",
+      "recipientContactId": "C1",
+      "payload": {
+        "label": "ops"
+      },
+      "ruleId": "c4",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+      "approval": "auto",
+      "allowQuietOverride": false,
+      "deniedKinds": []
+    }
+  ],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:c4:matches",
+      "by": 1
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "traces": [
+    {
+      "ruleId": "c14",
+      "specificity": 0,
+      "outcome": "not_matched",
+      "reason": "conditions",
+      "conditions": [
+        {
+          "name": "sample",
+          "passed": false,
+          "detail": "0.690149"
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": []
+}

@@ -1,0 +1,44 @@
+{
+  "traces": [
+    {
+      "ruleId": "t6",
+      "specificity": 0,
+      "outcome": "matched",
+      "conditions": [],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "escalate",
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "escalate",
+      "source": "rule:t6",
+      "actor": "rule:t6",
+      "idempotencyKey": "rule:t6:01EVENT:0",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "reason": "no reply to Cust Chat for 2h"
+      },
+      "ruleId": "t6",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "approval": "auto",
+      "allowQuietOverride": false,
+      "deniedKinds": [],
+      "text": "no reply to Cust Chat for 2h"
+    }
+  ],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:t6:matches",
+      "by": 1
+    }
+  ]
+}

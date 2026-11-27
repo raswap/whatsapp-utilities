@@ -1,0 +1,50 @@
+{
+  "traces": [
+    {
+      "ruleId": "c19b",
+      "specificity": 0,
+      "outcome": "matched",
+      "conditions": [],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "send_message",
+          "status": "backfill",
+          "reason": "sends are off for backfill events"
+        },
+        {
+          "index": 1,
+          "kind": "set_label",
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "set_label",
+      "source": "rule:c19b",
+      "actor": "rule:c19b",
+      "idempotencyKey": "rule:c19b:01EVENT:1",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "label": "seen"
+      },
+      "ruleId": "c19b",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+      "approval": "auto",
+      "allowQuietOverride": false,
+      "deniedKinds": []
+    }
+  ],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:c19b:matches",
+      "by": 1
+    }
+  ]
+}

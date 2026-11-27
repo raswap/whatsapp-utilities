@@ -1,0 +1,21 @@
+{
+  "traces": [
+    {
+      "ruleId": "c22b",
+      "specificity": 0,
+      "outcome": "not_matched",
+      "reason": "conditions",
+      "conditions": [
+        {
+          "name": "not.0.keywords",
+          "passed": true,
+          "detail": "hello"
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": []
+}

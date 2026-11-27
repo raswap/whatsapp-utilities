@@ -1,0 +1,26 @@
+{
+  "traces": [
+    {
+      "ruleId": "g2",
+      "specificity": 0,
+      "outcome": "matched",
+      "conditions": [],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "send_message",
+          "status": "destination_not_allowed",
+          "reason": "boss@s.whatsapp.net is not on destinations"
+        }
+      ]
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:g2:matches",
+      "by": 1
+    }
+  ]
+}
