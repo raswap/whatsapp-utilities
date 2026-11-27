@@ -255,14 +255,16 @@ export function actionKind(action: RuleAction): RuleActionKind {
   return Object.keys(action)[0] as RuleActionKind
 }
 
-/** Variables that make a remembered fact message- or model-derived (FR-R10). */
-const TAINTED_FACT_SOURCES = /^(message\.|understand\.|contact\.display_name$)/
+/** Variables that are message- or model-derived (FR-R10, PRD §7.6 additional rule). */
+export const MESSAGE_DERIVED_VARIABLE = /^(message\.|understand\.|contact\.display_name$)/
 
 /** Class of one action; `schedule` inherits its inner action's class (PRD §7.3). */
 export function actionClass(action: RuleAction): ActionClass {
   if ('schedule' in action) return actionClass(action.schedule.action)
   if ('remember_fact' in action) {
-    const tainted = templateVariables(action.remember_fact.value).some((v) => TAINTED_FACT_SOURCES.test(v))
+    const tainted = templateVariables(action.remember_fact.value).some((v) =>
+      MESSAGE_DERIVED_VARIABLE.test(v),
+    )
     return tainted ? 'side_effecting' : 'observe'
   }
   return RULE_ACTION_CLASS[actionKind(action) as BaseActionKind]

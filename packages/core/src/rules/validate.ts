@@ -120,7 +120,7 @@ function stringsIn(v: unknown, path: string, out: Located[]) {
 }
 
 /** Template strings of one action, by field. */
-function templatesOf(action: RuleAction, path: string): Located[] {
+export function templatesOf(action: RuleAction, path: string): Located[] {
   const out: Located[] = []
   if ('schedule' in action) return templatesOf(action.schedule.action, `${path}.schedule.action`)
   const a = action as BaseAction

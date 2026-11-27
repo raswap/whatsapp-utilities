@@ -13,6 +13,9 @@ import { PolicyGate } from './gate/policy.js'
 import { accountSchemaName } from './ids.js'
 import type { OperatorChannel } from './operator/channel.js'
 import { OperatorState } from './operator/state.js'
+import { RuleRunner } from './rules/runner.js'
+import type { TargetsConfig } from './rules/schema.js'
+import { RuleStore } from './rules/store.js'
 import type { Codec } from './store/codec.js'
 
 export interface AccountRuntime {
@@ -23,6 +26,8 @@ export interface AccountRuntime {
   executor: Executor
   audit: AuditLog
   limiter: Limiter
+  /** The account's rule store; global rules come from `RuntimeDeps.globalRules`. */
+  rules: RuleStore
   start(): Promise<void>
   stop(): Promise<void>
   /** Account kill switch (PRD FR-A6); audited. */
@@ -37,6 +42,10 @@ export interface RuntimeDeps {
   clock: Clock
   log: Logger
   operator: OperatorChannel
+  /** Operator store holding global rules (empty scope); omitted in tests that only need account rules. */
+  globalRules?: RuleStore
+  /** Registered outbound targets, for rule validation. */
+  targets?: TargetsConfig
   backfillAgeThresholdMs?: number
   approvalTtlMs?: number
   unknownResolveWindowMs?: number
@@ -93,6 +102,26 @@ export function createAccountRuntime(d: RuntimeDeps): AccountRuntime {
     ...(d.sleep ? { sleep: d.sleep } : {}),
   })
   pipeline.onEvent(executor.pipelineHandler())
+  const rules = new RuleStore(db, tables, {
+    accountId: d.config.id,
+    accountType: d.config.type,
+    clock: d.clock,
+    ...(d.targets ? { targets: d.targets } : {}),
+  })
+  const runner = new RuleRunner({
+    db,
+    tables,
+    account: d.config,
+    chats: pipeline.chats,
+    messages: pipeline.messages,
+    identities: pipeline.identities,
+    executor,
+    rules,
+    ...(d.globalRules ? { globalRules: d.globalRules } : {}),
+    clock: d.clock,
+    log: d.log,
+  })
+  pipeline.onEvent(runner.handler())
   pipeline.attach(d.connector)
   const operatorState = new OperatorState(db)
   return {
@@ -103,6 +132,7 @@ export function createAccountRuntime(d: RuntimeDeps): AccountRuntime {
     executor,
     audit,
     limiter,
+    rules,
     async start() {
       await pipeline.start()
       await d.connector.start()

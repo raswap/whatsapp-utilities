@@ -158,11 +158,14 @@ export class PolicyGate {
     }
     pass('loop_protection')
 
-    // 6. quiet hours
+    // 6. quiet hours. Quiet hours stop automated sends; an action in approve mode is queued for a
+    // human instead, who decides whether to send after hours (the starter away-ack relies on this).
     const open = inBusinessHours(ctx.now, ctx.timezone, ctx.businessHours)
     if (!open) {
       if (action.overrideQuietHours && action.allowQuietOverride)
         pass('quiet_hours', 'outside business hours; override permitted by rule scope')
+      else if (action.approval === 'approve')
+        pass('quiet_hours', 'outside business hours; queued for human approval')
       else return fail('quiet_hours', 'outside business hours')
     } else pass('quiet_hours')
 

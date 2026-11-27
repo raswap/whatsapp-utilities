@@ -1,0 +1,15 @@
+{
+  "traces": [
+    {
+      "ruleId": "c19",
+      "specificity": 0,
+      "outcome": "not_matched",
+      "reason": "backfill",
+      "conditions": [],
+      "actions": []
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": []
+}

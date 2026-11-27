@@ -1,0 +1,56 @@
+{
+  "traces": [
+    {
+      "ruleId": "a3",
+      "specificity": 0,
+      "outcome": "matched",
+      "conditions": [],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "send_message",
+          "status": "suppressed_by_state",
+          "reason": "chat automation is paused"
+        },
+        {
+          "index": 1,
+          "kind": "set_label",
+          "status": "planned"
+        },
+        {
+          "index": 2,
+          "kind": "react_to_message",
+          "status": "denied",
+          "reason": "react_to_message denied by a scope-matched rule"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "set_label",
+      "source": "rule:a3",
+      "actor": "rule:a3",
+      "idempotencyKey": "rule:a3:01EVENT:1",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "label": "seen"
+      },
+      "ruleId": "a3",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+      "approval": "approve",
+      "allowQuietOverride": false,
+      "deniedKinds": ["react_to_message"]
+    }
+  ],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:a3:matches",
+      "by": 1
+    }
+  ]
+}

@@ -149,8 +149,12 @@ export class Executor {
     if (row.approvalCreatedBy === actor)
       throw new ApprovalError('an action cannot be approved by the actor that created it', 'SELF_APPROVAL')
     const p = this.plannedFrom(row)
-    // Re-run the gate: kill switches and limits may have changed since the request (PRD §8.4).
-    const decision = await this.o.gate.evaluate({ ...p, approval: 'auto' }, await this.o.contextFor(p))
+    // Re-run the gate: kill switches and limits may have changed since the request (PRD §8.4). The
+    // human approving is the quiet-hours override: the action was queued for exactly this decision.
+    const decision = await this.o.gate.evaluate(
+      { ...p, approval: 'auto', overrideQuietHours: true, allowQuietOverride: true },
+      await this.o.contextFor(p),
+    )
     await this.o.audit.append({
       actor,
       kind: 'approval',

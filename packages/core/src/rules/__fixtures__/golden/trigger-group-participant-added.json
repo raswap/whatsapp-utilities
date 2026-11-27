@@ -1,0 +1,45 @@
+{
+  "traces": [
+    {
+      "ruleId": "t4",
+      "specificity": 20,
+      "outcome": "matched",
+      "conditions": [],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "notify_operator",
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "notify_operator",
+      "source": "rule:t4",
+      "actor": "rule:t4",
+      "idempotencyKey": "rule:t4:01EVENT:0",
+      "chatId": "120@g.us",
+      "recipientContactId": "C1",
+      "payload": {
+        "title": "Rule t4",
+        "level": "info"
+      },
+      "ruleId": "t4",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "approval": "auto",
+      "allowQuietOverride": false,
+      "deniedKinds": [],
+      "text": "joined Ops"
+    }
+  ],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:t4:matches",
+      "by": 1
+    }
+  ]
+}

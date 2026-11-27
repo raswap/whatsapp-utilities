@@ -1,0 +1,24 @@
+{
+  "traces": [
+    {
+      "ruleId": "c20",
+      "specificity": 0,
+      "outcome": "not_matched",
+      "reason": "conditions",
+      "conditions": [
+        {
+          "name": "any_of.0.keywords",
+          "passed": false
+        },
+        {
+          "name": "any_of.1.regex",
+          "passed": false
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": []
+}

@@ -1,0 +1,49 @@
+{
+  "traces": [
+    {
+      "ruleId": "c10",
+      "specificity": 0,
+      "outcome": "matched",
+      "conditions": [
+        {
+          "name": "reply_to_me",
+          "passed": true
+        }
+      ],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "set_label",
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "set_label",
+      "source": "rule:c10",
+      "actor": "rule:c10",
+      "idempotencyKey": "rule:c10:01EVENT:0",
+      "chatId": "cust@s.whatsapp.net",
+      "recipientContactId": "C1",
+      "payload": {
+        "label": "hit"
+      },
+      "ruleId": "c10",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+      "approval": "auto",
+      "allowQuietOverride": false,
+      "deniedKinds": []
+    }
+  ],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:c10:matches",
+      "by": 1
+    }
+  ]
+}

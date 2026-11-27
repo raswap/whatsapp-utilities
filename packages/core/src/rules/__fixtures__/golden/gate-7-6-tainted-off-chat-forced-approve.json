@@ -1,0 +1,44 @@
+{
+  "traces": [
+    {
+      "ruleId": "g1",
+      "specificity": 0,
+      "outcome": "matched",
+      "conditions": [],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "send_message",
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "send_message",
+      "source": "rule:g1",
+      "actor": "rule:g1",
+      "idempotencyKey": "rule:g1:01EVENT:0",
+      "chatId": "boss@s.whatsapp.net",
+      "payload": {
+        "text": "FYI: hello"
+      },
+      "ruleId": "g1",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "bodyHash": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+      "approval": "approve",
+      "allowQuietOverride": false,
+      "deniedKinds": [],
+      "text": "FYI: hello"
+    }
+  ],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:g1:matches",
+      "by": 1
+    }
+  ]
+}

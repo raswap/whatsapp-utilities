@@ -35,3 +35,15 @@ export function inBusinessHours(d: Date, timeZone: string, bh: BusinessHours): b
   const prev = weekday === 1 ? 7 : weekday - 1
   return minutes < end && bh.days.includes(prev)
 }
+
+/**
+ * True when `d` falls inside an HH:MM-HH:MM wall-clock window on any day; a window may cross midnight.
+ * DST in the zone follows the wall clock: a skipped hour (spring gap) never matches because no instant
+ * has that wall-clock time, and a repeated hour (autumn overlap) matches on both passes.
+ */
+export function inClockWindow(d: Date, timeZone: string, start: string, end: string): boolean {
+  const { minutes } = wallClock(d, timeZone)
+  const s = toMinutes(start)
+  const e = toMinutes(end)
+  return s <= e ? minutes >= s && minutes < e : minutes >= s || minutes < e
+}

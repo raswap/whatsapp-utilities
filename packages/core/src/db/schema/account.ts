@@ -296,6 +296,38 @@ export function accountTables(schemaName: string) {
     (t) => [primaryKey({ columns: [t.day, t.scope] })],
   )
 
+  /** Persisted triggers and delayed actions (FR-X4); polled by the scheduler in P1 PR 3. */
+  const scheduledJobs = s.table(
+    'scheduled_jobs',
+    {
+      id: text('id').primaryKey(),
+      ruleId: text('rule_id').notNull(),
+      kind: text('kind').notNull(), // cron | no_reply_within | delayed_action
+      runAt: timestamp('run_at', { withTimezone: true }).notNull(),
+      chatId: text('chat_id'),
+      eventId: text('event_id'),
+      bodyHash: text('body_hash'),
+      payload: jsonb('payload').notNull().default(sql`'{}'::jsonb`),
+      claimedAt: timestamp('claimed_at', { withTimezone: true }),
+      createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    },
+    (t) => [index('scheduled_jobs_due_idx').on(t.runAt).where(sql`${t.claimedAt} is null`)],
+  )
+
+  /** Rule evaluation traces (FR-R11): one row per rule for matched, blocked, suppressed_by_state and error; one summary row per event for not_matched. */
+  const ruleTraces = s.table(
+    'rule_traces',
+    {
+      eventId: text('event_id').notNull(),
+      ruleId: text('rule_id').notNull(),
+      outcome: text('outcome').notNull(),
+      trace: jsonb('trace').notNull().default(sql`'{}'::jsonb`),
+      stateSnapshot: jsonb('state_snapshot').notNull().default(sql`'{}'::jsonb`),
+      createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    },
+    (t) => [primaryKey({ columns: [t.eventId, t.ruleId] })],
+  )
+
   return {
     schema: s,
     events,
@@ -316,6 +348,8 @@ export function accountTables(schemaName: string) {
     sessionState,
     chatLabels,
     llmUsage,
+    scheduledJobs,
+    ruleTraces,
   }
 }
 

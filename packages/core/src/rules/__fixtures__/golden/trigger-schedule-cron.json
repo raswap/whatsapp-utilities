@@ -1,0 +1,44 @@
+{
+  "traces": [
+    {
+      "ruleId": "t5",
+      "specificity": 0,
+      "outcome": "matched",
+      "conditions": [],
+      "actions": [
+        {
+          "index": 0,
+          "kind": "notify_operator",
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "kind": "notify_operator",
+      "source": "rule:t5",
+      "actor": "rule:t5",
+      "idempotencyKey": "rule:t5:01EVENT:0",
+      "chatId": "cust@s.whatsapp.net",
+      "payload": {
+        "title": "Digest",
+        "level": "info"
+      },
+      "ruleId": "t5",
+      "eventId": "01EVENT",
+      "inboundOrigin": null,
+      "approval": "auto",
+      "allowQuietOverride": false,
+      "deniedKinds": [],
+      "text": "2026\\-06\\-01 in UTC"
+    }
+  ],
+  "effects": [],
+  "deltas": [
+    {
+      "counter": "rule:t5:matches",
+      "by": 1
+    }
+  ]
+}

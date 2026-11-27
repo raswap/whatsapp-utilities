@@ -234,6 +234,12 @@ describe('policy gate', () => {
       outcome: 'execute',
     },
     { name: 'approve mode awaits', action: { approval: 'approve' }, outcome: 'await_approval' },
+    {
+      name: 'approve mode outside business hours queues for a human instead of blocking',
+      action: { approval: 'approve' },
+      ctx: { now: new Date('2026-06-01T20:00:00Z') },
+      outcome: 'await_approval',
+    },
     { name: 'dry run', action: { approval: 'dry_run' }, outcome: 'dry_run' },
     {
       name: 'throttled account forces approval on sends',

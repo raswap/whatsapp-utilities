@@ -1,0 +1,21 @@
+{
+  "traces": [
+    {
+      "ruleId": "c1b",
+      "specificity": 0,
+      "outcome": "not_matched",
+      "reason": "conditions",
+      "conditions": [
+        {
+          "name": "sender",
+          "passed": false,
+          "detail": "sender not listed"
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [],
+  "effects": [],
+  "deltas": []
+}

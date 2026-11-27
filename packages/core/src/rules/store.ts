@@ -1,4 +1,4 @@
-import { asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, isNull, sql } from 'drizzle-orm'
 import YAML from 'yaml'
 import { type Clock, systemClock } from '../clock.js'
 import type { Db } from '../db/client.js'
@@ -159,6 +159,28 @@ export class RuleStore {
   async list(): Promise<StoredRule[]> {
     const rows = await this.db.select().from(this.t.rules).orderBy(asc(this.t.rules.id))
     return rows.map((r) => this.hydrate(r))
+  }
+
+  /** Enabled, non-suspended rules: what the engine evaluates. */
+  async listActive(): Promise<StoredRule[]> {
+    const rows = await this.db
+      .select()
+      .from(this.t.rules)
+      .where(and(eq(this.t.rules.enabled, true), isNull(this.t.rules.suspendedReason)))
+      .orderBy(asc(this.t.rules.id))
+    return rows.map((r) => this.hydrate(r))
+  }
+
+  /** Changes whenever the active set changes; the engine reloads its cache when it differs. One cheap query. */
+  async stamp(): Promise<string> {
+    const [row] = await this.db
+      .select({
+        n: sql<number>`count(*)`,
+        max: sql<string | null>`max(${this.t.rules.updatedAt})::text`,
+      })
+      .from(this.t.rules)
+      .where(and(eq(this.t.rules.enabled, true), isNull(this.t.rules.suspendedReason)))
+    return `${row?.n ?? 0}:${row?.max ?? ''}`
   }
 
   async get(id: string): Promise<StoredRule | null> {
